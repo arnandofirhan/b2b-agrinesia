@@ -51,6 +51,41 @@
   var hiActive = 0;
   var loActive = 0;
 
+  // FIX BUG NYATA ("Unexpected token '<', <!DOCTYPE ... is not valid JSON" muncul tepat
+  // setelah logout lalu login lagi): JavaScript.html SUDAH mengasumsikan bridge ini punya
+  // window.__apiBridgeResetQueue__() yang dipanggil oleh handleLogout() (lihat komentarnya
+  // di sana) untuk membuang antrian request yang masih tertunda dari SESI SEBELUM logout —
+  // tapi fungsi itu sebelumnya tidak pernah dibuat sama sekali di sini, jadi panggilan itu
+  // diam-diam tidak melakukan apa-apa (typeof check di JavaScript.html gagal, aman tidak
+  // crash, TAPI antrian lama tidak pernah dibersihkan). Akibatnya: request yang terkirim
+  // SEBELUM logout (mis. dari preloadAllPages_/polling) tetap pulang setelah login baru
+  // selesai — kadang dengan token/kondisi yang sudah tidak sinkron lagi di sisi GAS, yang
+  // bisa membuat GAS membalas halaman redirect/login Google (HTML, diawali "<!DOCTYPE")
+  // padahal bridge mengharapkan JSON murni -> res.json() gagal parse -> error mentah itu
+  // muncul sebagai toast ke user, walau app sebenarnya baik-baik saja.
+  // FIX: setiap job direkam SESSION_GEN_ saat ia dibuat (bukan saat dieksekusi). Kalau
+  // window.__apiBridgeResetQueue__() dipanggil (dari handleLogout()), generasi dinaikkan
+  // dan seluruh isi antrian yang BELUM sempat jalan langsung dibuang total (request-nya
+  // malah tidak pernah dikirim ke server sama sekali, bukan cuma diabaikan hasilnya — lebih
+  // hemat & lebih bersih). Untuk job yang SUDAH terkirim (sedang menunggu response saat
+  // reset terjadi), request itu dibiarkan selesai apa adanya di background (fetch tidak
+  // bisa "dibatalkan" separuh jalan dengan aman), TAPI onSuccess/onFailure-nya di-skip kalau
+  // generasi job itu sudah tidak sama dengan generasi sekarang — jadi callback lama itu
+  // tidak akan pernah menyentuh state APAPUN di JavaScript.html yang mungkin sudah berubah
+  // (STATE.user sudah beda, dst), persis prinsip SESSION_GEN_ yang sudah dipakai di sisi
+  // JavaScript.html sendiri untuk kasus serupa (lihat komentarnya).
+  var bridgeGen_ = 0;
+  window.__apiBridgeResetQueue__ = function () {
+    bridgeGen_++;
+    hiQueue.length = 0;
+    loQueue.length = 0;
+    // hiActive/loActive SENGAJA tidak direset ke 0 di sini — itu menghitung request yang
+    // SEDANG di-fetch (sudah terkirim ke server), bukan yang masih di antrian. Membiarkan
+    // pump_() jalan otomatis begitu masing-masing selesai (lewat callback done() di
+    // runJob_) tetap aman: generasi job-job aktif itu sudah "usang" duluan, jadi hasilnya
+    // otomatis diabaikan lewat pengecekan job.gen !== bridgeGen_ di bawah.
+  };
+
   function pump_() {
     while (hiActive < MAX_CONCURRENT_HI && hiQueue.length) {
       hiActive++;
@@ -68,13 +103,35 @@
     fetch(GAS_EXEC_URL, {
       method: 'POST',
       // text/plain menghindari CORS preflight OPTIONS (GAS /exec tidak
+
       // melayani preflight dengan baik) — Code.gs tetap JSON.parse() body-nya.
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ fn: job.fnName, args: job.args })
     })
-      .then(function (res) { return res.json(); })
+      .then(function (res) {
+        // Lihat catatan lengkap FIX di dekat deklarasi bridgeGen_/__apiBridgeResetQueue__
+        // di atas: kalau tidak OK (mis. redirect ke halaman login Google karena sesi lama
+        // sudah tidak valid saat request ini akhirnya pulang), response-nya HTML — bukan
+        // JSON — dan res.json() akan gagal parse dengan pesan mentah yang membingungkan
+        // user ("Unexpected token '<'..."). Deteksi lewat res.ok/content-type SEBELUM
+        // mencoba parse, supaya kasus ini dilempar sebagai error yang jelas maksudnya,
+        // bukan pesan parsing JSON yang teknis.
+        var ct = res.headers.get('content-type') || '';
+        if (!res.ok || ct.indexOf('json') === -1) {
+          throw new Error('Sesi kedaluwarsa atau server tidak merespons dengan benar. Coba login ulang.');
+        }
+        return res.json();
+      })
       .then(function (payload) {
         done();
+        // Job ini mulai dieksekusi SEBELUM __apiBridgeResetQueue__() dipanggil (kalau
+        // sesudahnya, job ini malah tidak akan pernah ada di sini — sudah dibuang total
+        // dari antrian, lihat catatan di reset). Kalau generasinya sudah usang, response
+        // yang baru pulang ini kemungkinan besar dari SESI LAMA (sebelum logout) — jangan
+        // sentuh callback onSuccess/onFailure APAPUN, supaya tidak menyentuh STATE.user dkk
+        // yang sudah berubah sejak job ini dijadwalkan (prinsip sama dengan SESSION_GEN_ di
+        // JavaScript.html).
+        if (job.gen !== bridgeGen_) return;
         if (payload && payload.ok) {
           job.onSuccess(payload.result);
         } else {
@@ -83,11 +140,13 @@
       })
       .catch(function (err) {
         done();
+        if (job.gen !== bridgeGen_) return;
         job.onFailure(err);
       });
   }
 
   function enqueue_(job) {
+    job.gen = bridgeGen_; // rekam generasi SAAT job dibuat — lihat catatan lengkap di atas
     if (job.lowPriority) loQueue.push(job); else hiQueue.push(job);
     pump_();
   }
