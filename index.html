@@ -3655,6 +3655,152 @@
   }
   html[data-theme="dark"] .reg-choice-icon{ background:linear-gradient(150deg, var(--ag-gray-50) 0%, rgba(var(--accent-rgb),.25) 100%); }
   html[data-theme="dark"] .reg-choice-arrow{ background:var(--ag-gray-50); }
+
+  /* =============================================================================
+     EMPLOYEE BENEFIT — ROLE EMPLOYEE & ROLE STORE (STYLES)
+     ============================================================================= */
+  .eb-dash{display:flex;flex-direction:column;gap:0;}
+  .eb-dash-greet{font-size:14px;color:var(--ag-gray-600);margin-bottom:18px;}
+  .eb-dash-greet strong{color:var(--ag-gray-900,#1a1a1a);}
+
+  .section-title-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .section-title-row .section-title{margin-bottom:0;}
+  .eb-link{font-size:12.5px;font-weight:700;color:var(--ag-green);cursor:pointer;}
+  .eb-link:hover{text-decoration:underline;}
+
+  .eb-chart-wrap{position:relative;width:100%;height:220px;}
+
+  .eb-recent-list, .eb-trx-list{display:flex;flex-direction:column;gap:2px;}
+  .eb-recent-row, .eb-trx-item{
+    display:flex;align-items:center;gap:12px;padding:12px 6px;border-radius:12px;cursor:pointer;
+    transition:background .15s ease;
+  }
+  .eb-recent-row:hover, .eb-trx-item:hover{background:var(--ag-gray-50);}
+  .eb-recent-row:active, .eb-trx-item:active{background:var(--ag-green-soft);}
+  .eb-recent-icon{
+    width:38px;height:38px;border-radius:12px;background:var(--ag-green-soft);color:var(--ag-green);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  }
+  .eb-recent-icon svg{width:18px;height:18px;}
+  .eb-recent-info{flex:1;min-width:0;}
+  .eb-recent-store, .eb-trx-store{font-size:13.5px;font-weight:700;color:var(--ag-gray-900,#1a1a1a);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .eb-recent-sub, .eb-trx-meta{font-size:11.5px;color:var(--ag-gray-400);margin-top:2px;}
+  .eb-recent-amount, .eb-trx-amount{font-size:13.5px;font-weight:800;color:var(--ag-green);white-space:nowrap;flex-shrink:0;}
+
+  .eb-trx-item-left{flex:1;min-width:0;}
+  .eb-trx-item-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+  .eb-trx-chevron{transform:rotate(-90deg);color:var(--ag-gray-400);display:flex;}
+  .eb-trx-chevron svg{width:16px;height:16px;}
+
+  .eb-detail-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--ag-gray-100);font-size:13px;}
+  .eb-detail-row:last-of-type{border-bottom:none;}
+  .eb-detail-row span{color:var(--ag-gray-400);}
+  .eb-detail-row strong{color:var(--ag-gray-900,#1a1a1a);font-weight:700;}
+  .eb-detail-amount{color:var(--ag-green) !important;font-size:16px;}
+  .eb-detail-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--ag-gray-400);margin:14px 0 8px;}
+
+  .eb-receipt-preview{display:block;border-radius:14px;overflow:hidden;border:1px solid var(--ag-gray-200);}
+  .eb-receipt-preview img{width:100%;display:block;object-fit:cover;max-height:320px;}
+  .eb-receipt-fallback{
+    padding:20px;text-align:center;border-radius:14px;border:1.5px dashed var(--ag-gray-200);
+    color:var(--ag-gray-400);font-size:12.5px;
+  }
+
+  /* ---- QR Code page ---- */
+  .eb-qr-page{display:flex;flex-direction:column;align-items:center;gap:16px;padding:12px 0 24px;}
+  .eb-qr-card{
+    background:linear-gradient(160deg,#ffffff 0%,#F6FBF8 100%);
+    border:1px solid var(--ag-gray-200);border-radius:24px;padding:28px 24px;
+    display:flex;flex-direction:column;align-items:center;gap:6px;
+    box-shadow:0 16px 40px rgba(16,24,32,.10);max-width:340px;width:100%;
+  }
+  .eb-qr-card-header{display:flex;align-items:center;gap:8px;margin-bottom:14px;}
+  .eb-qr-logo{width:26px;height:26px;color:var(--ag-green);display:flex;}
+  .eb-qr-logo svg{width:22px;height:22px;}
+  .eb-qr-brand{font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--ag-green);}
+  .eb-qr-box{
+    background:#fff;padding:14px;border-radius:16px;border:1px solid var(--ag-gray-100);
+    display:flex;align-items:center;justify-content:center;min-height:220px;min-width:220px;
+  }
+  .eb-qr-name{font-size:16px;font-weight:800;color:var(--ag-gray-900,#1a1a1a);margin-top:16px;text-align:center;}
+  .eb-qr-sub{font-size:12.5px;color:var(--ag-gray-500,#666);margin-top:2px;text-align:center;}
+  .eb-qr-idcard{
+    margin-top:10px;font-size:11.5px;font-weight:700;color:var(--ag-green);background:var(--ag-green-soft);
+    padding:5px 14px;border-radius:999px;letter-spacing:.02em;
+  }
+  .eb-qr-hint{font-size:12.5px;color:var(--ag-gray-400);text-align:center;max-width:300px;line-height:1.5;}
+
+  /* ---- Profile page ---- */
+  .eb-profile-card{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;padding:28px 20px;}
+  .eb-profile-avatar{
+    width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#1E7A4C,#0B3D2E);
+    color:#fff;font-size:26px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-bottom:8px;
+  }
+  .eb-profile-name{font-size:17px;font-weight:800;color:var(--ag-gray-900,#1a1a1a);}
+  .eb-profile-company{font-size:12.5px;color:var(--ag-gray-400);margin-bottom:6px;}
+
+  .eb-doc-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .eb-doc-tile{
+    display:flex;flex-direction:column;align-items:center;gap:8px;padding:20px 12px;border-radius:14px;
+    border:1.5px dashed var(--ag-gray-200);color:var(--ag-gray-500,#666);text-decoration:none;
+    transition:background .15s ease,border-color .15s ease;
+  }
+  .eb-doc-tile:hover{background:var(--ag-green-soft);border-color:var(--ag-green);color:var(--ag-green);}
+  .eb-doc-tile svg{width:22px;height:22px;}
+  .eb-doc-tile span{font-size:12px;font-weight:700;}
+
+  /* ---- Store: Scan Barcode page ---- */
+  .eb-scan-page{display:flex;justify-content:center;padding:8px 0;}
+  .eb-scan-card{max-width:420px;width:100%;}
+  .eb-scan-viewport{
+    position:relative;width:100%;aspect-ratio:1/1;border-radius:18px;overflow:hidden;
+    background:#0B1F17;display:flex;align-items:center;justify-content:center;
+  }
+  .eb-scan-viewport video{width:100%;height:100%;object-fit:cover;}
+  .eb-scan-frame{
+    position:absolute;top:12%;left:12%;right:12%;bottom:12%;
+    border:3px solid rgba(255,255,255,.55);border-radius:20px;
+    transition:border-color .25s ease,box-shadow .25s ease;pointer-events:none;
+  }
+  .eb-scan-frame.eb-scan-frame-success{border-color:#2ECC71;box-shadow:0 0 0 4px rgba(46,204,113,.28);}
+  .eb-scan-frame.eb-scan-frame-error{border-color:#EB5757;box-shadow:0 0 0 4px rgba(235,87,87,.28);}
+  .eb-scan-hint{
+    position:absolute;bottom:14px;left:50%;transform:translateX(-50%);
+    background:rgba(0,0,0,.55);color:#fff;font-size:12px;font-weight:600;padding:7px 16px;border-radius:999px;
+    white-space:nowrap;pointer-events:none;
+  }
+
+  .eb-trx-emp-banner{
+    display:flex;align-items:center;gap:12px;padding:14px;border-radius:14px;background:var(--ag-green-soft);
+    margin-bottom:18px;
+  }
+  .eb-trx-emp-icon{
+    width:40px;height:40px;border-radius:12px;background:#fff;color:var(--ag-green);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  }
+  .eb-trx-emp-icon svg{width:20px;height:20px;}
+  .eb-trx-emp-name{font-size:14px;font-weight:800;color:var(--ag-gray-900,#1a1a1a);}
+  .eb-trx-emp-sub{font-size:11.5px;color:var(--ag-gray-500,#666);margin-top:2px;}
+
+  .eb-receipt-upload-preview{margin-top:10px;}
+  .eb-receipt-upload-preview img{width:100%;max-height:200px;object-fit:cover;border-radius:12px;border:1px solid var(--ag-gray-200);}
+
+  .eb-success-modal{display:flex;flex-direction:column;align-items:center;text-align:center;padding:32px 24px 24px;}
+  .eb-success-icon{
+    width:64px;height:64px;border-radius:50%;background:#DCF5E4;color:#0F7A3D;
+    display:flex;align-items:center;justify-content:center;margin-bottom:16px;
+  }
+  .eb-success-icon svg{width:30px;height:30px;}
+  .eb-success-title{font-size:16px;font-weight:800;color:var(--ag-gray-900,#1a1a1a);}
+  .eb-success-sub{font-size:13.5px;font-weight:700;color:var(--ag-green);margin-top:6px;}
+  .eb-success-detail{font-size:12px;color:var(--ag-gray-400);margin-top:4px;}
+
+  @media (max-width:640px){
+    .eb-qr-card{padding:22px 16px;}
+    .eb-qr-box{min-width:180px;min-height:180px;padding:10px;}
+    .eb-doc-grid{grid-template-columns:1fr;}
+  }
+
 </style>
 </head>
 <body>
@@ -4404,7 +4550,7 @@
 
   // ---------- Menu definition per role ----------
   var MENU_ITEMS = [
-    { key: 'dashboard',   icon: ICONS.dashboard, label: 'Dashboard',        roles: ['ADMIN','AGENT','SUPERVISOR','MANAGER'] },
+    { key: 'dashboard',   icon: ICONS.dashboard, label: 'Dashboard',        roles: ['ADMIN','AGENT','SUPERVISOR','MANAGER','EMPLOYEE','STORE'] },
     { key: 'agents',      icon: ICONS.agent,     label: 'Agent',            roles: ['ADMIN','AGENT','SUPERVISOR','MANAGER'] },
     { key: 'products',    icon: ICONS.products,  label: 'Master Item Product', roles: ['ADMIN','MANAGER'] },
     { key: 'catalog',     icon: ICONS.products,  label: 'Katalog',          roles: ['AGENT','SUPERVISOR'] },
@@ -4420,7 +4566,12 @@
     { key: 'users',       icon: ICONS.users,     label: 'Kelola User',      roles: ['ADMIN'] },
     { key: 'settings',    icon: ICONS.settings,  label: 'Pengaturan',       roles: ['ADMIN'] },
     { key: 'dashboard-settings', icon: ICONS.dashboard, label: 'Dashboard Settings', roles: ['ADMIN'] },
-    { key: 'audit-log',   icon: ICONS.audit,     label: 'Audit Log',        roles: ['ADMIN','MANAGER'] }
+    { key: 'audit-log',   icon: ICONS.audit,     label: 'Audit Log',        roles: ['ADMIN','MANAGER'] },
+    { key: 'eb-qr',           icon: ICONS.reports,     label: 'QR Code',            roles: ['EMPLOYEE'] },
+    { key: 'eb-transactions', icon: ICONS.transactions,label: 'Riwayat Transaksi',  roles: ['EMPLOYEE'] },
+    { key: 'eb-profile',      icon: ICONS.users,       label: 'Profile',            roles: ['EMPLOYEE'] },
+    { key: 'eb-scan',         icon: ICONS.cart,        label: 'Scan Barcode',       roles: ['STORE'] },
+    { key: 'eb-companies',    icon: ICONS.stores,      label: 'Master Company',     roles: ['ADMIN','SUPERVISOR','MANAGER'] }
   ].filter(function(item){
     // Live Chat dimatikan total lewat LIVECHAT_FEATURE_ENABLED_ (lihat deklarasinya di
     // paling atas file) — di-filter keluar DI SINI (sumber tunggal MENU_ITEMS) supaya
@@ -4436,7 +4587,8 @@
     { key: 'transaksi', label: 'Transaksi',         items: ['catalog','promo','livechat','transactions','orders','commission','commission-scheme'] },
     { key: 'master',    label: 'Master Data',       items: ['agents','products','stores'] },
     { key: 'laporan',   label: 'Laporan & Jadwal',  items: ['reports','calendar'] },
-    { key: 'sistem',    label: 'Sistem',            items: ['users','settings','dashboard-settings','audit-log'] }
+    { key: 'sistem',    label: 'Sistem',            items: ['users','settings','dashboard-settings','audit-log'] },
+    { key: 'eb-menu',   label: 'Employee Benefit',  items: ['eb-companies','eb-qr','eb-transactions','eb-profile','eb-scan'] }
   ];
   // Which groups start expanded by default (persisted in-session via SIDEBAR_GROUP_STATE_ below).
   var SIDEBAR_GROUP_STATE_ = { transaksi: true, master: true, laporan: true, sistem: true };
@@ -4448,7 +4600,9 @@
     commission: 'Commission', 'commission-scheme': 'Skema Komisi',
     stores: 'Store Management', users: 'Kelola User', settings: 'Pengaturan',
     'dashboard-settings': 'Dashboard Settings',
-    'audit-log': 'Audit Log', reports: 'Laporan', calendar: 'Kalender Pengambilan'
+    'audit-log': 'Audit Log', reports: 'Laporan', calendar: 'Kalender Pengambilan',
+    'eb-qr': 'QR Code', 'eb-transactions': 'Riwayat Transaksi', 'eb-profile': 'Profile', 'eb-scan': 'Scan Barcode',
+    'eb-companies': 'Master Company'
   };
 
   // =============================================================
@@ -5723,6 +5877,11 @@
       clearInterval(CHAT_STATE_.pollInterval);
       CHAT_STATE_.pollInterval = null;
     }
+    // Matikan kamera scan QR (role STORE) begitu pindah dari halaman Scan Barcode ke
+    // halaman lain, supaya kamera HP tidak terus menyala di background sia-sia.
+    if(pageKey !== 'eb-scan' && typeof stopEbScan_ === 'function'){
+      stopEbScan_();
+    }
     // Catat perpindahan ini ke riwayat browser (lihat initAppHistory_ di bawah) supaya
     // gesture/tombol back bawaan HP tahu ada "halaman sebelumnya" di DALAM app, dan balik
     // ke situ dulu — bukan langsung keluar app (yang bikin sessionStorage token hilang dan
@@ -5795,6 +5954,11 @@
         case 'dashboard-settings': return renderDashboardSettings();
         case 'reports': return renderReports();
         case 'calendar': return renderCalendarPage();
+        case 'eb-qr': return renderEmployeeQr();
+        case 'eb-transactions': return renderEmployeeTransactions();
+        case 'eb-profile': return renderEmployeeProfile();
+        case 'eb-scan': return renderStoreScan();
+        case 'eb-companies': return renderEbCompanies();
         default:
           content.innerHTML = '<div class="empty-state">Modul "'+ (PAGE_TITLES[pageKey]||pageKey) +'" belum tersedia.</div>';
       }
@@ -12373,6 +12537,12 @@
     if(STATE.user && STATE.user.role === 'AGENT'){
       return renderAgentDashboard();
     }
+    if(STATE.user && STATE.user.role === 'EMPLOYEE'){
+      return renderEmployeeDashboard();
+    }
+    if(STATE.user && STATE.user.role === 'STORE'){
+      return renderStoreDashboard();
+    }
     if(DASH_DATA_CACHE_){
       // Instant paint from what we already have — feels immediate, no spinner flash.
       paintDashboardKpis_(DASH_DATA_CACHE_.kpiData);
@@ -15516,6 +15686,759 @@
       setTimeout(syncMobileViewportHeight_, 350);
     }
   });
+
+  // =============================================================================
+  // EMPLOYEE BENEFIT — ROLE EMPLOYEE & ROLE STORE (FRONTEND)
+  // Menu Employee: Dashboard, QR Code, Riwayat Transaksi, Profile
+  // Menu Store:    Dashboard, Scan Barcode
+  // Semua data lewat google.script.run ke fungsi eb*() di EmployeeBenefit.gs.
+  // =============================================================================
+
+  // ---------- Lazy-load libs (jsQR untuk scan kamera, qrcode.js untuk generate QR) ----------
+  var JSQR_LOADED_ = false, JSQR_CALLBACKS_ = [];
+  function ensureJsQrLoaded_(callback){
+    if(typeof jsQR !== 'undefined'){ callback(); return; }
+    JSQR_CALLBACKS_.push(callback);
+    if(JSQR_LOADED_) return;
+    JSQR_LOADED_ = true;
+    var script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js';
+    script.onload = function(){ JSQR_CALLBACKS_.forEach(function(cb){ cb(); }); JSQR_CALLBACKS_ = []; };
+    document.head.appendChild(script);
+  }
+  var QRCODEJS_LOADED_ = false, QRCODEJS_CALLBACKS_ = [];
+  function ensureQrCodeJsLoaded_(callback){
+    if(typeof QRCode !== 'undefined'){ callback(); return; }
+    QRCODEJS_CALLBACKS_.push(callback);
+    if(QRCODEJS_LOADED_) return;
+    QRCODEJS_LOADED_ = true;
+    var script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+    script.onload = function(){ QRCODEJS_CALLBACKS_.forEach(function(cb){ cb(); }); QRCODEJS_CALLBACKS_ = []; };
+    document.head.appendChild(script);
+  }
+
+  // =============================================================================
+  // ROLE EMPLOYEE — DASHBOARD
+  // =============================================================================
+  var EB_EMP_DASH_CACHE_ = null;
+  function renderEmployeeDashboard(){
+    var content = document.getElementById('content');
+    if(EB_EMP_DASH_CACHE_){
+      content.innerHTML = ebEmpDashboardHtml_(EB_EMP_DASH_CACHE_);
+      ebDrawTrendChart_(EB_EMP_DASH_CACHE_.monthlyTrend, 'ebEmpTrendChart');
+    } else {
+      content.innerHTML = '<div class="spinner"></div>';
+    }
+    google.script.run
+      .withSuccessHandler(function(res){
+        if(STATE.currentPage !== 'dashboard') return;
+        EB_EMP_DASH_CACHE_ = res;
+        content.innerHTML = ebEmpDashboardHtml_(res);
+        ebDrawTrendChart_(res.monthlyTrend, 'ebEmpTrendChart');
+      })
+      .withFailureHandler(function(err){
+        if(!EB_EMP_DASH_CACHE_) handleBackendError(err, document.getElementById('content'));
+      })
+      .ebGetMyDashboard(STATE.token, null);
+  }
+
+  function ebEmpDashboardHtml_(d){
+    var name = (STATE.user && STATE.user.name) ? STATE.user.name : '';
+    var recentHtml = (d.recent && d.recent.length)
+      ? d.recent.map(function(t){
+          return '<div class="eb-recent-row" onclick="openEbTrxDetail_(\''+escapeHtml(t.trxId)+'\')">' +
+            '<div class="eb-recent-icon">'+ICONS.cart+'</div>' +
+            '<div class="eb-recent-info">' +
+              '<div class="eb-recent-store">'+escapeHtml(t.storeName||'-')+'</div>' +
+              '<div class="eb-recent-sub">'+escapeHtml(t.trxNumber||'-')+' &middot; '+formatDateTimeDMY_(t.createdAt)+'</div>' +
+            '</div>' +
+            '<div class="eb-recent-amount">'+formatRupiah(t.amount)+'</div>' +
+          '</div>';
+        }).join('')
+      : '<div class="empty-state"><div class="empty-state-icon">'+ICONS.cart+'</div>' +
+        '<div class="empty-state-title">Belum ada transaksi</div>' +
+        '<div class="empty-state-sub">Riwayat belanja Anda akan muncul di sini.</div></div>';
+
+    return '<div class="eb-dash">' +
+      '<div class="eb-dash-greet">Halo, <strong>'+escapeHtml(name)+'</strong> &mdash; berikut ringkasan benefit Anda periode <strong>'+escapeHtml(d.periodLabel)+'</strong>.</div>' +
+      '<div class="kpi-grid">' +
+        '<div class="kpi-card kpi-green">' +
+          '<div class="kpi-icon">'+ICONS.transactions+'</div>' +
+          '<div class="kpi-value">'+d.monthTrxCount+'</div>' +
+          '<div class="kpi-label">Transaksi Bulan Ini</div>' +
+        '</div>' +
+        '<div class="kpi-card kpi-blue">' +
+          '<div class="kpi-icon">'+ICONS.reports+'</div>' +
+          '<div class="kpi-value">'+formatRupiah(d.monthTotalAmount)+'</div>' +
+          '<div class="kpi-label">Total Belanja Bulan Ini</div>' +
+        '</div>' +
+        '<div class="kpi-card kpi-purple">' +
+          '<div class="kpi-icon">'+ICONS.cart+'</div>' +
+          '<div class="kpi-value">'+formatRupiah(d.avgPerTrx)+'</div>' +
+          '<div class="kpi-label">Rata-rata / Transaksi</div>' +
+        '</div>' +
+        '<div class="kpi-card kpi-orange">' +
+          '<div class="kpi-icon">'+ICONS.calendar+'</div>' +
+          '<div class="kpi-value">'+d.allTimeTrxCount+'</div>' +
+          '<div class="kpi-label">Total Transaksi (Semua)</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="card">' +
+        '<div class="section-title">Tren 6 Bulan Terakhir</div>' +
+        '<div class="eb-chart-wrap"><canvas id="ebEmpTrendChart" height="180"></canvas></div>' +
+      '</div>' +
+      '<div class="card">' +
+        '<div class="section-title-row">' +
+          '<div class="section-title">Transaksi Terbaru</div>' +
+          '<span class="eb-link" onclick="showPage(\'eb-transactions\')">Lihat semua</span>' +
+        '</div>' +
+        '<div class="eb-recent-list">'+recentHtml+'</div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function ebDrawTrendChart_(trend, canvasId){
+    if(!trend || !trend.length) return;
+    ensureChartJsLoaded_(function(){
+      var canvas = document.getElementById(canvasId);
+      if(!canvas) return;
+      if(canvas._chartInstance) canvas._chartInstance.destroy();
+      var ctx = canvas.getContext('2d');
+      canvas._chartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: trend.map(function(t){ return t.label; }),
+          datasets: [{
+            label: 'Total Belanja',
+            data: trend.map(function(t){ return t.totalAmount; }),
+            backgroundColor: '#1E7A4C',
+            borderRadius: 8,
+            maxBarThickness: 36
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false },
+            tooltip: { callbacks: { label: function(c){ return formatRupiah(c.parsed.y); } } } },
+          scales: {
+            y: { ticks: { callback: function(v){ return 'Rp'+(v/1000)+'k'; } }, grid: { color: 'rgba(0,0,0,.05)' } },
+            x: { grid: { display: false } }
+          }
+        }
+      });
+    });
+  }
+
+  // =============================================================================
+  // ROLE EMPLOYEE — QR CODE
+  // =============================================================================
+  function renderEmployeeQr(){
+    var content = document.getElementById('content');
+    content.innerHTML = '<div class="spinner"></div>';
+    google.script.run
+      .withSuccessHandler(function(res){
+        if(STATE.currentPage !== 'eb-qr') return;
+        if(!res.success){
+          content.innerHTML = '<div class="empty-state"><div class="empty-state-icon">'+ICONS.cancel+'</div>' +
+            '<div class="empty-state-title">QR Code Belum Aktif</div>' +
+            '<div class="empty-state-sub">'+escapeHtml(res.message)+'</div></div>';
+          return;
+        }
+        content.innerHTML =
+          '<div class="eb-qr-page">' +
+            '<div class="eb-qr-card">' +
+              '<div class="eb-qr-card-header">' +
+                '<div class="eb-qr-logo">'+ICONS.dashboard+'</div>' +
+                '<div class="eb-qr-brand">CORPORATE MEMBER</div>' +
+              '</div>' +
+              '<div class="eb-qr-box" id="ebQrBox"></div>' +
+              '<div class="eb-qr-name">'+escapeHtml(res.fullName)+'</div>' +
+              '<div class="eb-qr-sub">'+escapeHtml(res.companyName)+'</div>' +
+              '<div class="eb-qr-idcard">ID: '+escapeHtml(res.idCardNumber)+'</div>' +
+            '</div>' +
+            '<div class="eb-qr-hint">Tunjukkan QR ini ke kasir saat berbelanja untuk mendapatkan potongan Corporate Benefit.</div>' +
+          '</div>';
+        ensureQrCodeJsLoaded_(function(){
+          var box = document.getElementById('ebQrBox');
+          if(!box) return;
+          box.innerHTML = '';
+          new QRCode(box, {
+            text: res.qrPayload,
+            width: 220, height: 220,
+            colorDark: '#0B3D2E', colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.H
+          });
+        });
+      })
+      .withFailureHandler(function(err){ handleBackendError(err, document.getElementById('content')); })
+      .ebGetMyQR(STATE.token);
+  }
+
+  // =============================================================================
+  // ROLE EMPLOYEE — RIWAYAT TRANSAKSI
+  // =============================================================================
+  var EB_EMP_TRX_CACHE_ = [];
+  function renderEmployeeTransactions(){
+    var content = document.getElementById('content');
+    content.innerHTML = '<div class="spinner"></div>';
+    google.script.run
+      .withSuccessHandler(function(rows){
+        if(STATE.currentPage !== 'eb-transactions') return;
+        EB_EMP_TRX_CACHE_ = rows || [];
+        content.innerHTML = ebEmpTransactionsHtml_(EB_EMP_TRX_CACHE_);
+      })
+      .withFailureHandler(function(err){ handleBackendError(err, document.getElementById('content')); })
+      .ebGetMyTransactions(STATE.token, null);
+  }
+
+  function ebEmpTransactionsHtml_(rows){
+    if(!rows.length){
+      return '<div class="card"><div class="empty-state"><div class="empty-state-icon">'+ICONS.cart+'</div>' +
+        '<div class="empty-state-title">Belum ada transaksi</div>' +
+        '<div class="empty-state-sub">Riwayat belanja Anda akan tampil di sini setelah kasir mencatat transaksi.</div></div></div>';
+    }
+    var rowsHtml = rows.map(function(t){
+      return '<div class="eb-trx-item" onclick="openEbTrxDetail_(\''+escapeHtml(t.trxId)+'\')">' +
+        '<div class="eb-trx-item-left">' +
+          '<div class="eb-trx-store">'+escapeHtml(t.storeName||'-')+'</div>' +
+          '<div class="eb-trx-meta">No. '+escapeHtml(t.trxNumber||'-')+' &middot; '+formatDateTimeDMY_(t.createdAt)+'</div>' +
+        '</div>' +
+        '<div class="eb-trx-item-right">' +
+          '<div class="eb-trx-amount">'+formatRupiah(t.amount)+'</div>' +
+          '<div class="eb-trx-chevron">'+ICONS.chevronDown+'</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+    return '<div class="card"><div class="section-title">Riwayat Transaksi ('+rows.length+')</div>' +
+      '<div class="eb-trx-list">'+rowsHtml+'</div></div>';
+  }
+
+  function openEbTrxDetail_(trxId){
+    var t = null;
+    for(var i=0;i<EB_EMP_TRX_CACHE_.length;i++){ if(EB_EMP_TRX_CACHE_[i].trxId === trxId){ t = EB_EMP_TRX_CACHE_[i]; break; } }
+    if(!t && EB_EMP_DASH_CACHE_ && EB_EMP_DASH_CACHE_.recent){
+      for(var j=0;j<EB_EMP_DASH_CACHE_.recent.length;j++){ if(EB_EMP_DASH_CACHE_.recent[j].trxId === trxId){ t = EB_EMP_DASH_CACHE_.recent[j]; break; } }
+    }
+    if(!t) return;
+    var receiptHtml = t.receiptUrl
+      ? '<a href="'+escapeHtml(t.receiptUrl)+'" target="_blank" class="eb-receipt-preview">' +
+          '<img src="'+escapeHtml(t.receiptUrl)+'" alt="Struk" onerror="this.parentElement.innerHTML=\'<div class=&quot;eb-receipt-fallback&quot;>Lihat Struk (PDF/File)</div>\'">' +
+        '</a>'
+      : '<div class="eb-receipt-fallback">Tidak ada foto struk.</div>';
+    openModal(
+      '<div class="modal-header"><span class="modal-title">Detail Transaksi</span>' +
+      '<button class="modal-close" onclick="closeModal()">'+CLOSE_ICON+'</button></div>' +
+      '<div class="modal-body">' +
+        '<div class="eb-detail-row"><span>Nomor Transaksi</span><strong>'+escapeHtml(t.trxNumber||'-')+'</strong></div>' +
+        '<div class="eb-detail-row"><span>Store</span><strong>'+escapeHtml(t.storeName||'-')+'</strong></div>' +
+        '<div class="eb-detail-row"><span>Tanggal</span><strong>'+formatDateTimeDMY_(t.createdAt)+'</strong></div>' +
+        '<div class="eb-detail-row"><span>Nominal</span><strong class="eb-detail-amount">'+formatRupiah(t.amount)+'</strong></div>' +
+        '<div class="eb-detail-label">Foto Struk</div>' +
+        receiptHtml +
+      '</div>' +
+      '<div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Tutup</button></div>',
+      'modal-sm'
+    );
+  }
+
+  // =============================================================================
+  // ROLE EMPLOYEE — PROFILE
+  // =============================================================================
+  function renderEmployeeProfile(){
+    var content = document.getElementById('content');
+    content.innerHTML = '<div class="spinner"></div>';
+    google.script.run
+      .withSuccessHandler(function(p){
+        if(STATE.currentPage !== 'eb-profile') return;
+        content.innerHTML = ebProfileHtml_(p);
+      })
+      .withFailureHandler(function(err){ handleBackendError(err, document.getElementById('content')); })
+      .ebGetMyProfile(STATE.token);
+  }
+
+  function ebProfileHtml_(p){
+    var statusBadge = ebStatusBadge_(p.registrationStatus);
+    return '<div class="eb-profile">' +
+      '<div class="card eb-profile-card">' +
+        '<div class="eb-profile-avatar">'+escapeHtml((p.fullName||'?').charAt(0).toUpperCase())+'</div>' +
+        '<div class="eb-profile-name">'+escapeHtml(p.fullName)+'</div>' +
+        '<div class="eb-profile-company">'+escapeHtml(p.companyName)+'</div>' +
+        statusBadge +
+      '</div>' +
+      '<div class="card">' +
+        '<div class="section-title">Data Diri</div>' +
+        '<div class="eb-detail-row"><span>Nomor ID Card</span><strong>'+escapeHtml(p.idCardNumber)+'</strong></div>' +
+        '<div class="eb-detail-row"><span>Email</span><strong>'+escapeHtml(p.email)+'</strong></div>' +
+        '<div class="eb-detail-row"><span>Perusahaan</span><strong>'+escapeHtml(p.companyName)+'</strong></div>' +
+        '<div class="eb-detail-row"><span>Status Karyawan</span><strong>'+escapeHtml(p.employeeStatus||'-')+'</strong></div>' +
+      '</div>' +
+      '<div class="card">' +
+        '<div class="section-title">Dokumen</div>' +
+        '<div class="eb-doc-grid">' +
+          '<a class="eb-doc-tile" href="'+escapeHtml((p.docs&&p.docs.KTP&&p.docs.KTP.url)||'#')+'" target="_blank">'+ICONS.reports+'<span>Foto KTP</span></a>' +
+          '<a class="eb-doc-tile" href="'+escapeHtml((p.docs&&p.docs.IDCARD&&p.docs.IDCARD.url)||'#')+'" target="_blank">'+ICONS.reports+'<span>Foto ID Card</span></a>' +
+        '</div>' +
+      '</div>' +
+      '<div class="card">' +
+        '<div class="section-title">Keamanan</div>' +
+        '<button class="btn btn-secondary" style="width:100%;" onclick="openChangePasswordModal()">Ubah Password</button>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function ebStatusBadge_(status){
+    var map = {
+      APPROVED: ['badge badge-green', 'Terverifikasi'],
+      PENDING: ['badge badge-orange', 'Menunggu Verifikasi'],
+      REJECTED: ['badge badge-red', 'Ditolak']
+    };
+    var m = map[status] || ['badge badge-neutral', status || '-'];
+    return '<span class="'+m[0]+'">'+escapeHtml(m[1])+'</span>';
+  }
+
+  // =============================================================================
+  // ROLE STORE — DASHBOARD
+  // =============================================================================
+  var EB_STORE_DASH_CACHE_ = null;
+  function renderStoreDashboard(){
+    var content = document.getElementById('content');
+    if(EB_STORE_DASH_CACHE_){
+      content.innerHTML = ebStoreDashboardHtml_(EB_STORE_DASH_CACHE_);
+      ebDrawTrendChart_(EB_STORE_DASH_CACHE_.monthlyTrend, 'ebStoreTrendChart');
+    } else {
+      content.innerHTML = '<div class="spinner"></div>';
+    }
+    google.script.run
+      .withSuccessHandler(function(res){
+        if(STATE.currentPage !== 'dashboard') return;
+        EB_STORE_DASH_CACHE_ = res;
+        content.innerHTML = ebStoreDashboardHtml_(res);
+        ebDrawTrendChart_(res.monthlyTrend, 'ebStoreTrendChart');
+      })
+      .withFailureHandler(function(err){
+        if(!EB_STORE_DASH_CACHE_) handleBackendError(err, document.getElementById('content'));
+      })
+      .ebGetStoreDashboard(STATE.token, null);
+  }
+
+  function ebStoreDashboardHtml_(d){
+    var storeName = (STATE.user && STATE.user.storeName) ? STATE.user.storeName : (STATE.user ? STATE.user.name : '');
+    var recentHtml = (d.recent && d.recent.length)
+      ? d.recent.map(function(t){
+          return '<div class="eb-recent-row">' +
+            '<div class="eb-recent-icon">'+ICONS.agent+'</div>' +
+            '<div class="eb-recent-info">' +
+              '<div class="eb-recent-store">'+escapeHtml(t.employeeName||'-')+'</div>' +
+              '<div class="eb-recent-sub">'+escapeHtml(t.trxNumber||'-')+' &middot; '+formatDateTimeDMY_(t.createdAt)+'</div>' +
+            '</div>' +
+            '<div class="eb-recent-amount">'+formatRupiah(t.amount)+'</div>' +
+          '</div>';
+        }).join('')
+      : '<div class="empty-state"><div class="empty-state-icon">'+ICONS.cart+'</div>' +
+        '<div class="empty-state-title">Belum ada transaksi</div>' +
+        '<div class="empty-state-sub">Transaksi yang dicatat via scan QR akan muncul di sini.</div></div>';
+
+    return '<div class="eb-dash">' +
+      '<div class="eb-dash-greet">Store <strong>'+escapeHtml(storeName)+'</strong> &mdash; ringkasan transaksi periode <strong>'+escapeHtml(d.periodLabel)+'</strong>.</div>' +
+      '<div class="kpi-grid">' +
+        '<div class="kpi-card kpi-green">' +
+          '<div class="kpi-icon">'+ICONS.transactions+'</div>' +
+          '<div class="kpi-value">'+d.monthTrxCount+'</div>' +
+          '<div class="kpi-label">Transaksi Bulan Ini</div>' +
+        '</div>' +
+        '<div class="kpi-card kpi-blue">' +
+          '<div class="kpi-icon">'+ICONS.reports+'</div>' +
+          '<div class="kpi-value">'+formatRupiah(d.monthTotalAmount)+'</div>' +
+          '<div class="kpi-label">Total Belanja Bulan Ini</div>' +
+        '</div>' +
+        '<div class="kpi-card kpi-purple">' +
+          '<div class="kpi-icon">'+ICONS.agent+'</div>' +
+          '<div class="kpi-value">'+(d.uniqueEmployees||0)+'</div>' +
+          '<div class="kpi-label">Karyawan Unik</div>' +
+        '</div>' +
+        '<div class="kpi-card kpi-orange">' +
+          '<div class="kpi-icon">'+ICONS.calendar+'</div>' +
+          '<div class="kpi-value">'+d.todayTrxCount+'</div>' +
+          '<div class="kpi-label">Transaksi Hari Ini</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="card">' +
+        '<div class="section-title">Tren 6 Bulan Terakhir</div>' +
+        '<div class="eb-chart-wrap"><canvas id="ebStoreTrendChart" height="180"></canvas></div>' +
+      '</div>' +
+      '<div class="card">' +
+        '<div class="section-title">Transaksi Terbaru</div>' +
+        '<div class="eb-recent-list">'+recentHtml+'</div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  // =============================================================================
+  // ROLE STORE — SCAN BARCODE
+  // =============================================================================
+  var EB_SCAN_STATE_ = { stream: null, rafId: null, scanning: false, validatedEmployee: null };
+
+  function renderStoreScan(){
+    var content = document.getElementById('content');
+    content.innerHTML =
+      '<div class="eb-scan-page">' +
+        '<div class="card eb-scan-card">' +
+          '<div class="eb-scan-viewport" id="ebScanViewport">' +
+            '<video id="ebScanVideo" playsinline muted></video>' +
+            '<canvas id="ebScanCanvas" style="display:none;"></canvas>' +
+            '<div class="eb-scan-frame" id="ebScanFrame"></div>' +
+            '<div class="eb-scan-hint" id="ebScanHint">Arahkan kamera ke QR Code karyawan</div>' +
+          '</div>' +
+          '<button class="btn btn-primary" style="width:100%;margin-top:14px;" id="ebScanStartBtn" onclick="startEbScan_()">Buka Kamera</button>' +
+        '</div>' +
+      '</div>';
+    stopEbScan_();
+  }
+
+  function startEbScan_(){
+    var startBtn = document.getElementById('ebScanStartBtn');
+    ensureJsQrLoaded_(function(){
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+        .then(function(stream){
+          EB_SCAN_STATE_.stream = stream;
+          EB_SCAN_STATE_.scanning = true;
+          var video = document.getElementById('ebScanVideo');
+          if(!video) return;
+          video.srcObject = stream;
+          video.setAttribute('playsinline', true);
+          video.play();
+          if(startBtn) startBtn.style.display = 'none';
+          requestAnimationFrame(ebScanTick_);
+        })
+        .catch(function(err){
+          showToast('Tidak bisa mengakses kamera: ' + (err.message || err), 'error');
+        });
+    });
+  }
+
+  function ebScanTick_(){
+    if(!EB_SCAN_STATE_.scanning) return;
+    var video = document.getElementById('ebScanVideo');
+    var canvas = document.getElementById('ebScanCanvas');
+    if(!video || !canvas || video.readyState !== video.HAVE_ENOUGH_DATA){
+      EB_SCAN_STATE_.rafId = requestAnimationFrame(ebScanTick_);
+      return;
+    }
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    var ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    var code = jsQR(imageData.data, imageData.width, imageData.height);
+    if(code && code.data){
+      ebOnQrDetected_(code.data);
+      return;
+    }
+    EB_SCAN_STATE_.rafId = requestAnimationFrame(ebScanTick_);
+  }
+
+  function ebOnQrDetected_(qrPayload){
+    EB_SCAN_STATE_.scanning = false;
+    var frame = document.getElementById('ebScanFrame');
+    var hint = document.getElementById('ebScanHint');
+    google.script.run
+      .withSuccessHandler(function(res){
+        if(!res.success){
+          if(frame) frame.classList.add('eb-scan-frame-error');
+          if(hint) hint.textContent = res.message || 'QR tidak valid.';
+          showToast(res.message || 'QR tidak valid.', 'error');
+          setTimeout(function(){
+            if(frame) frame.classList.remove('eb-scan-frame-error');
+            if(hint) hint.textContent = 'Arahkan kamera ke QR Code karyawan';
+            EB_SCAN_STATE_.scanning = true;
+            requestAnimationFrame(ebScanTick_);
+          }, 1600);
+          return;
+        }
+        if(frame) frame.classList.add('eb-scan-frame-success');
+        EB_SCAN_STATE_.validatedEmployee = res.employee;
+        showToast('QR terverifikasi!', 'success');
+        setTimeout(function(){
+          stopEbScan_();
+          openEbTrxForm_(res.employee);
+        }, 500);
+      })
+      .withFailureHandler(function(err){
+        showToast('Gagal validasi QR: ' + (err.message || err), 'error');
+        EB_SCAN_STATE_.scanning = true;
+        requestAnimationFrame(ebScanTick_);
+      })
+      .ebStoreValidateQR(STATE.token, qrPayload);
+  }
+
+  function stopEbScan_(){
+    EB_SCAN_STATE_.scanning = false;
+    if(EB_SCAN_STATE_.rafId) cancelAnimationFrame(EB_SCAN_STATE_.rafId);
+    if(EB_SCAN_STATE_.stream){
+      EB_SCAN_STATE_.stream.getTracks().forEach(function(t){ t.stop(); });
+      EB_SCAN_STATE_.stream = null;
+    }
+  }
+
+  var EB_TRX_RECEIPT_FILE_ = null;
+  function openEbTrxForm_(employee){
+    EB_TRX_RECEIPT_FILE_ = null;
+    openModal(
+      '<div class="modal-header"><span class="modal-title">Input Transaksi</span>' +
+      '<button class="modal-close" onclick="closeEbTrxModal_()">'+CLOSE_ICON+'</button></div>' +
+      '<div class="modal-body">' +
+        '<div class="eb-trx-emp-banner">' +
+          '<div class="eb-trx-emp-icon">'+ICONS.agent+'</div>' +
+          '<div>' +
+            '<div class="eb-trx-emp-name">'+escapeHtml(employee.fullName)+'</div>' +
+            '<div class="eb-trx-emp-sub">'+escapeHtml(employee.companyName)+' &middot; ID: '+escapeHtml(employee.idCardNumber)+'</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="form-group"><label>Nomor Transaksi *</label>' +
+          '<input type="text" id="ebTrxNumber" placeholder="Contoh: TRX-00123"></div>' +
+        '<div class="form-group"><label>Nominal Belanja *</label>' +
+          '<input type="number" id="ebTrxAmount" placeholder="Contoh: 150000"></div>' +
+        '<div class="form-group"><label>Foto Struk *</label>' +
+          '<input type="file" id="ebTrxReceiptFile" accept="image/*,.pdf" onchange="handleEbReceiptChange_()">' +
+          '<div id="ebReceiptPreview" class="eb-receipt-upload-preview"></div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="modal-footer">' +
+        '<button class="btn btn-secondary" onclick="closeEbTrxModal_()">Batal</button>' +
+        '<button class="btn btn-primary" id="ebTrxSaveBtn" onclick="submitEbTransaction_(\''+escapeHtml(employee.employeeId)+'\')">Simpan</button>' +
+      '</div>',
+      'modal-sm'
+    );
+  }
+
+  function closeEbTrxModal_(){
+    closeModal();
+    renderStoreScan();
+  }
+
+  function handleEbReceiptChange_(){
+    var fileInput = document.getElementById('ebTrxReceiptFile');
+    var file = fileInput.files[0];
+    if(!file) return;
+    fileToBase64_(file, function(fileObj){
+      EB_TRX_RECEIPT_FILE_ = fileObj;
+      var preview = document.getElementById('ebReceiptPreview');
+      if(!preview) return;
+      if(file.type.indexOf('image/') === 0){
+        preview.innerHTML = '<img src="'+fileObj.data+'" alt="Preview Struk">';
+      } else {
+        preview.innerHTML = '<div class="eb-receipt-fallback">'+escapeHtml(file.name)+'</div>';
+      }
+    });
+  }
+
+  function submitEbTransaction_(employeeId){
+    var trxNumber = document.getElementById('ebTrxNumber').value.trim();
+    var amount = document.getElementById('ebTrxAmount').value;
+    if(!trxNumber){ showToast('Nomor transaksi wajib diisi.', 'error'); return; }
+    if(!amount || Number(amount) <= 0){ showToast('Nominal belanja tidak valid.', 'error'); return; }
+    if(!EB_TRX_RECEIPT_FILE_){ showToast('Foto struk wajib diupload.', 'error'); return; }
+
+    var btn = document.getElementById('ebTrxSaveBtn');
+    btn.disabled = true; btn.textContent = 'Menyimpan...';
+
+    google.script.run
+      .withSuccessHandler(function(res){
+        btn.disabled = false; btn.textContent = 'Simpan';
+        if(!res.success){
+          showToast(res.message || 'Gagal menyimpan transaksi.', 'error');
+          return;
+        }
+        closeModal();
+        ebShowTrxSuccessModal_(res.summary);
+        EB_STORE_DASH_CACHE_ = null; // paksa refresh dashboard store berikutnya
+      })
+      .withFailureHandler(function(err){
+        btn.disabled = false; btn.textContent = 'Simpan';
+        showToast('Terjadi kesalahan: ' + (err.message || err), 'error');
+      })
+      .ebStoreSaveTransaction(STATE.token, {
+        employeeId: employeeId,
+        trxNumber: trxNumber,
+        amount: amount,
+        receiptFile: EB_TRX_RECEIPT_FILE_
+      });
+  }
+
+  function ebShowTrxSuccessModal_(summary){
+    openModal(
+      '<div class="eb-success-modal">' +
+        '<div class="eb-success-icon">'+ICONS.check+'</div>' +
+        '<div class="eb-success-title">Transaksi Berhasil Disimpan</div>' +
+        '<div class="eb-success-sub">'+escapeHtml(summary.employeeName)+' &middot; '+formatRupiah(summary.amount)+'</div>' +
+        '<div class="eb-success-detail">No. '+escapeHtml(summary.trxNumber)+' &middot; '+escapeHtml(summary.storeName)+'</div>' +
+        '<button class="btn btn-primary" style="width:100%;margin-top:18px;" onclick="closeModal(); renderStoreScan();">Scan Karyawan Lain</button>' +
+      '</div>',
+      'modal-sm'
+    );
+  }
+
+
+  // =============================================================================
+  // EMPLOYEE BENEFIT — MASTER COMPANY (ADMIN / SUPERVISOR / MANAGER)
+  // Kelola daftar perusahaan mitra untuk dropdown "Company" di form Registrasi
+  // Employee Benefit. Tambah/Edit/Hapus terbuka untuk ADMIN, SUPERVISOR & MANAGER.
+  // =============================================================================
+  var EB_COMPANIES_CACHE_ = [];
+  var FILTER_STATE_EB_COMPANIES_ = { q:'', status:'__ALL__' };
+
+  function renderEbCompanies(){
+    google.script.run
+      .withSuccessHandler(function(rows){
+        EB_COMPANIES_CACHE_ = rows || [];
+        paintPage_('eb-companies', ebCompaniesPageHtml_());
+      })
+      .withFailureHandler(function(e){ handleBackendError(e, pageErrorEl_('eb-companies')); })
+      .ebListCompanies(STATE.token);
+  }
+
+  function onFilterChangeEbCompanies_(key, val){
+    if(key === '__RESET__'){ FILTER_STATE_EB_COMPANIES_ = { q:'', status:'__ALL__' }; }
+    else { FILTER_STATE_EB_COMPANIES_[key] = val; }
+    paintPage_('eb-companies', ebCompaniesPageHtml_());
+  }
+
+  function ebCompaniesPageHtml_(){
+    var rows = EB_COMPANIES_CACHE_;
+    var fieldConfigs = [
+      {key:'status', label:'Status', options:uniqueOptions_(rows,'Status'), match:function(r,v){return r.Status===v;}}
+    ];
+    var filtered = applyListFilters_(rows, FILTER_STATE_EB_COMPANIES_, ['CompanyID','CompanyName','PIC','Address'], fieldConfigs);
+    var filterHtml = filterBarHtml_('onFilterChangeEbCompanies_', 'Cari nama perusahaan, PIC, atau alamat...', fieldConfigs, FILTER_STATE_EB_COMPANIES_, filtered.length, rows.length);
+    var cols = [
+      {label:'No.', render:function(r,i){ return String(i+1); }},
+      {label:'Company ID', field:'CompanyID'},
+      {label:'Nama Perusahaan', titleCol:true, field:'CompanyName'},
+      {label:'Alamat', render:function(r){
+        var d = r.Address || '-';
+        var short = d.length > 35 ? escapeHtml(d.slice(0,35)) + '…' : escapeHtml(d);
+        return '<span title="'+escapeHtml(d)+'">'+short+'</span>';
+      }},
+      {label:'PIC', render:function(r){ return r.PIC ? escapeHtml(r.PIC) : '-'; }},
+      {label:'Catatan Benefit', render:function(r){
+        var d = r.BenefitNote || '-';
+        var short = d.length > 30 ? escapeHtml(d.slice(0,30)) + '…' : escapeHtml(d);
+        return '<span title="'+escapeHtml(d)+'">'+short+'</span>';
+      }},
+      {label:'Status', render:function(r){ return statusBadge(r.Status); }}
+    ];
+    // Tambah/Edit/Hapus dibuka untuk ADMIN, SUPERVISOR & MANAGER — sesuai kebijakan
+    // (lihat ebSaveCompany/ebDeleteCompany di EmployeeBenefit.gs, keduanya sekarang
+    // memvalidasi terhadap EB_REVIEWER_ROLES yang persis 3 role ini).
+    var canEdit = ['ADMIN','SUPERVISOR','MANAGER'].indexOf(STATE.user.role) !== -1;
+    var actions = function(r){
+      var view = 'viewEbCompany_(\''+r.CompanyID+'\')';
+      var edit = canEdit ? 'editEbCompany_(\''+r.CompanyID+'\')' : null;
+      var del = canEdit ? 'deleteEbCompanyConfirm_(\''+r.CompanyID+'\',\''+escapeHtml(r.CompanyName||'').replace(/'/g,"\\'")+'\')' : null;
+      return rowActionButtons(view, edit, del);
+    };
+    return '<div class="card"><div class="table-toolbar"><span class="card-title">Master Company</span>' +
+      (canEdit?'<button class="btn btn-primary btn-sm" onclick="editEbCompany_(null)">'+ICONS.plus+' Tambah Company</button>':'') +
+      '</div>' + filterHtml +
+      renderTableOrCards_(cols, filtered, actions,
+        rows.length ? 'Tidak ada perusahaan yang cocok' : 'Belum ada perusahaan',
+        rows.length ? 'Coba ubah kata kunci pencarian atau filter yang dipakai.' : 'Tambahkan perusahaan mitra pertama Anda — akan muncul otomatis di dropdown Company pada form Registrasi Employee Benefit.',
+        ICONS.stores) + '</div>';
+  }
+
+  function findEbCompany_(companyId){
+    for(var i=0;i<EB_COMPANIES_CACHE_.length;i++){ if(EB_COMPANIES_CACHE_[i].CompanyID === companyId) return EB_COMPANIES_CACHE_[i]; }
+    return null;
+  }
+
+  function viewEbCompany_(companyId){
+    var c = findEbCompany_(companyId);
+    if(!c){ showToast('Data tidak ditemukan.','error'); return; }
+    var head =
+      '<div class="agent-detail-head">' +
+        '<div class="agent-detail-avatar">'+ICONS.stores+'</div>' +
+        '<div class="agent-detail-head-meta">' +
+          '<div class="agent-detail-name">'+escapeHtml(c.CompanyName||'-')+'</div>' +
+          '<div class="agent-detail-id">'+escapeHtml(c.CompanyID||'-')+'</div>' +
+          '<div class="agent-detail-badges">' + statusBadge(c.Status) + '</div>' +
+        '</div>' +
+      '</div>';
+    var infoGrid =
+      '<div class="agent-detail-section-title">Informasi Perusahaan</div>' +
+      '<div class="agent-detail-grid">' +
+        detailField_('Alamat', escapeHtml(c.Address || '-'), true) +
+        detailField_('PIC', escapeHtml(c.PIC || '-')) +
+        detailField_('Catatan Benefit', escapeHtml(c.BenefitNote || '-'), true) +
+      '</div>';
+    openModal(
+      '<div class="modal-header"><span class="modal-title">Detail Perusahaan</span>' +
+      '<button class="modal-close" onclick="closeModal()">'+CLOSE_ICON+'</button></div>' +
+      '<div class="modal-body">'+head+infoGrid+'</div>' +
+      '<div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Tutup</button></div>'
+    );
+  }
+
+  function editEbCompany_(companyId){
+    var c = companyId ? findEbCompany_(companyId) : {};
+    c = c || {};
+    var statusVal = c.Status || 'ACTIVE';
+    var statusField =
+      '<div class="form-group"><label>Status</label><select id="ebCompanyStatus">' +
+        '<option value="ACTIVE"'+(statusVal==='ACTIVE'?' selected':'')+'>ACTIVE</option>' +
+        '<option value="INACTIVE"'+(statusVal==='INACTIVE'?' selected':'')+'>INACTIVE</option>' +
+      '</select></div>';
+    var benefitNoteField =
+      '<div class="form-group"><label>Catatan Benefit</label>' +
+      '<textarea id="ebCompanyBenefitNote" rows="3" placeholder="Contoh: Potongan 10% untuk semua kategori, maks Rp500.000/bulan">'+escapeHtml(c.BenefitNote||'')+'</textarea></div>';
+    var body =
+      formField_('ebCompanyName','Nama Perusahaan', c.CompanyName, 'text', '', true, ICONS.stores) +
+      formField_('ebCompanyAddress','Alamat', c.Address, 'text', '', false, ICONS.location) +
+      formField_('ebCompanyPIC','PIC', c.PIC, 'text', '', false, ICONS.agent) +
+      benefitNoteField +
+      statusField;
+    openFormModal(companyId ? 'Edit Company' : 'Tambah Company', body, function(){ saveEbCompanyForm_(companyId); });
+  }
+
+  function saveEbCompanyForm_(companyId){
+    var payload = {
+      CompanyID: companyId || undefined,
+      CompanyName: val_('ebCompanyName'),
+      Address: val_('ebCompanyAddress'),
+      PIC: val_('ebCompanyPIC'),
+      BenefitNote: val_('ebCompanyBenefitNote'),
+      Status: val_('ebCompanyStatus') || 'ACTIVE'
+    };
+    if(!payload.CompanyName){ showToast('Nama perusahaan wajib diisi.','error'); return; }
+    google.script.run
+      .withSuccessHandler(function(res){
+        if(res.success){ closeModal(); showToast(res.message || 'Perusahaan disimpan.','success'); renderEbCompanies(); }
+        else showToast(res.message || 'Gagal menyimpan.','error');
+      })
+      .withFailureHandler(function(e){ handleBackendError(e); })
+      .ebSaveCompany(STATE.token, payload);
+  }
+
+  function deleteEbCompanyConfirm_(companyId, companyName){
+    openConfirmModal({
+      title: 'Hapus Company?',
+      message: 'Perusahaan "'+companyName+'" akan dihapus permanen. Perusahaan yang masih dipakai karyawan terdaftar tidak bisa dihapus — nonaktifkan saja (Status = INACTIVE).',
+      confirmLabel: 'Ya, Hapus', danger: true, icon: ICONS.trash,
+      onConfirm: function(){
+        setPageLoading_(true, 'Menghapus perusahaan');
+        google.script.run
+          .withSuccessHandler(function(res){
+            setPageLoading_(false);
+            if(res.success){ showToast(res.message || 'Perusahaan dihapus.','success'); renderEbCompanies(); }
+            else showToast(res.message || 'Gagal menghapus.','error');
+          })
+          .withFailureHandler(function(e){ setPageLoading_(false); handleBackendError(e); })
+          .ebDeleteCompany(STATE.token, companyId);
+      }
+    });
+  }
+
 </script>
 
   <!-- Registrasi Service Worker DIHAPUS: Apps Script Web App di-render di dalam
