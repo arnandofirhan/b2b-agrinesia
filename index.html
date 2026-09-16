@@ -16469,6 +16469,30 @@
         '</div>' +
       '</div>';
     stopEbScan_();
+    ebAutoStartScanIfPermitted_();
+  }
+
+  /** FIX UX: sebelumnya user HARUS klik "Buka Kamera" manual setiap kali pindah menu lalu
+   *  balik lagi ke halaman Scan Barcode — padahal browser-nya sendiri sudah pernah kasih
+   *  izin kamera (permission itu "sticky" per situs, bukan per kunjungan halaman). Yang
+   *  bikin kamera "mati" adalah renderStoreScan() selalu bikin ulang <video> dari nol +
+   *  manggil stopEbScan_(), BUKAN karena browser minta izin ulang. Jadi solusinya: begitu
+   *  halaman ini dibuka, cek dulu status izin kamera lewat Permissions API — kalau statusnya
+   *  udah "granted", langsung nyalakan kamera otomatis tanpa nunggu klik, biar kasir bisa
+   *  langsung scan begitu masuk halaman (lebih cepat, lebih informatif — jelas kelihatan
+   *  kamera langsung aktif, bukan nge-hang).
+   *  Permissions API utk kamera TIDAK didukung semua browser (mis. Safari/iOS) — kalau
+   *  query gagal atau statusnya bukan "granted" (masih "prompt"/"denied"), fallback aman ke
+   *  perilaku lama: tombol "Buka Kamera" tetap muncul & user klik manual seperti biasa,
+   *  supaya browser tetap yang munculin native permission prompt-nya sendiri. */
+  function ebAutoStartScanIfPermitted_(){
+    if(!navigator.permissions || !navigator.permissions.query){ return; }
+    navigator.permissions.query({ name: 'camera' }).then(function(status){
+      if(STATE.currentPage !== 'eb-scan') return; // user keburu pindah halaman lagi
+      if(status.state === 'granted'){ startEbScan_(); }
+    }).catch(function(){
+      // Browser tidak mendukung query kamera (mis. Firefox versi lama) — biarkan user klik manual.
+    });
   }
 
   function setEbScanHint_(text, mode){
@@ -16566,11 +16590,24 @@
       EB_SCAN_STATE_.rafId = requestAnimationFrame(ebScanTick_);
       return;
     }
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    var ctx = canvas.getContext('2d');
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    // FIX PERFORMA: sebelumnya canvas di-set ke resolusi PENUH video (bisa 1280x720+ di
+    // HP modern), jadi tiap frame getImageData() + jsQR() harus proses ratusan ribu pixel
+    // — inilah yang bikin scan kerasa "lag"/kurang responsif, bukan soal kamera lambat
+    // nyala tapi loop deteksinya sendiri berat per-frame. QR code tetap gampang kebaca di
+    // resolusi jauh lebih kecil (jsQR tidak butuh detail tinggi), jadi kita downscale ke
+    // maksimal 480px di sisi terpanjang sebelum decode — throughput per frame naik
+    // signifikan (bisa 4-6x lebih sedikit pixel dibanding 720p), hasilnya kamera terasa
+    // jauh lebih responsif menangkap barcode tanpa mengurangi akurasi scan.
+    var vw = video.videoWidth, vh = video.videoHeight;
+    var maxSide = 480;
+    var scale = Math.min(1, maxSide / Math.max(vw, vh));
+    var cw = Math.max(1, Math.round(vw * scale));
+    var ch = Math.max(1, Math.round(vh * scale));
+    if(canvas.width !== cw) canvas.width = cw;
+    if(canvas.height !== ch) canvas.height = ch;
+    var ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(video, 0, 0, cw, ch);
+    var imageData = ctx.getImageData(0, 0, cw, ch);
     var code = jsQR(imageData.data, imageData.width, imageData.height);
     if(code && code.data){
       ebOnQrDetected_(code.data);
