@@ -3731,55 +3731,11 @@
   .eb-trx-modal-amount{font-size:26px;font-weight:800;color:var(--ag-dark-green,var(--ag-green));letter-spacing:-.02em;}
   .eb-trx-modal-sub{font-size:12px;color:var(--ag-gray-400);margin-top:4px;font-weight:600;}
 
-  .eb-receipt-preview{
-    display:block;position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--ag-gray-200);
-    cursor:zoom-in;
-  }
-  .eb-receipt-preview img{width:100%;display:block;object-fit:cover;max-height:320px;}
-  .eb-receipt-zoom{
-    position:absolute;right:8px;bottom:8px;width:30px;height:30px;border-radius:50%;
-    background:rgba(0,0,0,.55);color:#fff;display:flex;align-items:center;justify-content:center;
-  }
-  .eb-receipt-zoom svg{width:15px;height:15px;}
   .eb-receipt-fallback{
     padding:20px;text-align:center;border-radius:14px;border:1.5px dashed var(--ag-gray-200);
     color:var(--ag-gray-400);font-size:12.5px;display:flex;flex-direction:column;align-items:center;gap:8px;
   }
   .eb-receipt-fallback svg{width:22px;height:22px;opacity:.5;}
-  /* Kartu dokumen untuk struk berformat PDF/non-image — sebelumnya PDF cuma bikin <img> gagal
-     diam-diam (broken image icon), sekarang tampil sebagai kartu file yang jelas & bisa diketuk. */
-  .eb-receipt-doc{
-    display:flex;align-items:center;gap:12px;padding:14px;border-radius:14px;
-    border:1px solid var(--ag-gray-200);text-decoration:none;color:inherit;background:var(--ag-gray-50);
-    transition:background .15s ease;
-  }
-  .eb-receipt-doc:hover{background:var(--ag-green-soft);}
-  .eb-receipt-doc-icon{
-    width:40px;height:40px;border-radius:11px;background:#fff;color:var(--ag-green);flex-shrink:0;
-    display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(16,24,40,.06);
-  }
-  .eb-receipt-doc-icon svg{width:19px;height:19px;}
-  .eb-receipt-doc-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;}
-  .eb-receipt-doc-info strong{font-size:13px;color:var(--ag-gray-900,#1a1a1a);}
-  .eb-receipt-doc-info span{font-size:11.5px;color:var(--ag-gray-400);}
-  .eb-receipt-doc-arrow{color:var(--ag-gray-400);transform:rotate(-90deg);flex-shrink:0;display:flex;}
-  .eb-receipt-doc-arrow svg{width:16px;height:16px;}
-
-  /* Lightbox full-screen untuk foto struk (dipicu klik pada .eb-receipt-preview) */
-  .eb-lightbox{
-    position:fixed;inset:0;z-index:3000;background:rgba(10,14,12,.92);
-    display:flex;align-items:center;justify-content:center;padding:28px;cursor:zoom-out;
-    animation:ebLightboxIn .15s ease;
-  }
-  @keyframes ebLightboxIn{from{opacity:0;}to{opacity:1;}}
-  .eb-lightbox img{max-width:100%;max-height:100%;border-radius:8px;box-shadow:0 10px 40px rgba(0,0,0,.4);cursor:default;}
-  .eb-lightbox-close{
-    position:absolute;top:18px;right:18px;width:38px;height:38px;border-radius:50%;
-    background:rgba(255,255,255,.12);color:#fff;border:none;display:flex;align-items:center;justify-content:center;
-    cursor:pointer;
-  }
-  .eb-lightbox-close svg{width:18px;height:18px;}
-  .eb-lightbox-close:hover{background:rgba(255,255,255,.22);}
 
   /* ---- QR Code page ---- */
   .eb-qr-page{display:flex;flex-direction:column;align-items:center;gap:16px;padding:12px 0 24px;}
@@ -5251,13 +5207,31 @@
   // Note: GAS webapps in an iframe can restrict localStorage/sessionStorage
   // in some contexts — wrap safely and fall back to in-memory var.
   var MEM_STORE = {};
-  // FIX: dipindah dari sessionStorage -> localStorage. sessionStorage bisa hilang saat PWA
-  // Android di-background lalu proses-nya di-kill Android (umum di HP RAM kecil), memaksa
-  // user login ulang dari nol tiap buka app (bagian dari kenapa "loading awal lama").
-  // Nama fungsi SENGAJA tidak diubah supaya semua pemanggil yang sudah ada tidak perlu disentuh.
-  function sessionStorage_set(k,v){ try{ localStorage.setItem(k,v); }catch(e){ MEM_STORE[k]=v; } }
-  function sessionStorage_get(k){ try{ return localStorage.getItem(k); }catch(e){ return MEM_STORE[k]||null; } }
-  function sessionStorage_remove(k){ try{ localStorage.removeItem(k); }catch(e){ delete MEM_STORE[k]; } }
+  // FIX BUG NYATA ("login akun lain di tab lain bikin akun pertama ikut ke-session-expired
+  // /lemot"): versi sebelumnya nulis token HANYA ke localStorage, yang di-share oleh SEMUA
+  // tab/window pada origin yang sama. Login akun kedua di tab lain menimpa 'ag_token' milik
+  // tab pertama di localStorage — begitu tab pertama reload, ia membaca token akun KEDUA dari
+  // localStorage padahal user di tab itu masih akun pertama, sehingga sesi tampak acak
+  // "kedaluwarsa" walau baru saja login.
+  // FIX: pakai window.sessionStorage ASLI (native, terisolasi PER-TAB — tidak pernah dibagi
+  // antar tab meski origin sama) sebagai sumber utama, supaya tiap tab konsisten dengan akun
+  // yang login DI TAB ITU. localStorage tetap ditulis sebagai cadangan (bukan sumber utama)
+  // khusus untuk kasus PWA Android di-background lalu proses-nya di-kill Android — saat itu
+  // window.sessionStorage tab tsb ikut hilang, jadi boot ulang butuh fallback baca dari
+  // localStorage supaya user tidak dipaksa login dari nol (alasan asli fix sebelumnya, tetap
+  // dipertahankan). Nama fungsi SENGAJA tidak diubah supaya semua pemanggil lama tidak perlu disentuh.
+  function sessionStorage_set(k,v){
+    try{ window.sessionStorage.setItem(k,v); }catch(e){}
+    try{ localStorage.setItem(k,v); }catch(e){ MEM_STORE[k]=v; }
+  }
+  function sessionStorage_get(k){
+    try{ var v = window.sessionStorage.getItem(k); if(v!==null) return v; }catch(e){}
+    try{ return localStorage.getItem(k); }catch(e){ return MEM_STORE[k]||null; }
+  }
+  function sessionStorage_remove(k){
+    try{ window.sessionStorage.removeItem(k); }catch(e){}
+    try{ localStorage.removeItem(k); }catch(e){ delete MEM_STORE[k]; }
+  }
 
   // =============================================================
   // BOOT
@@ -16205,30 +16179,18 @@
   }
 
   /** HTML modal detail transaksi — dipakai bareng oleh role EMPLOYEE & STORE (openEbTrxDetail_
-   *  dan openEbStoreTrxDetail_) supaya tampilannya konsisten. Header pakai gaya "receipt card"
-   *  (nominal besar di atas, badge status), dan area struk mendeteksi otomatis apakah file-nya
-   *  gambar (tampil langsung sebagai preview, klik = lightbox penuh) atau PDF/file lain (tampil
-   *  sebagai kartu dokumen dengan tombol buka), bukan cuma <img> polos yang gagal diam-diam. */
+   *  dan openEbStoreTrxDetail_) supaya tampilannya konsisten. Foto struk sekarang dirender pakai
+   *  docPreviewCard_ / openDocLightbox — komponen kartu-dokumen yang sama persis dengan yang
+   *  dipakai di "Detail Order" (thumbnail + overlay kaca pembesar, klik = lightbox dgn tombol
+   *  "Buka di Drive"), jadi styling & UX-nya konsisten di seluruh aplikasi, bukan komponen
+   *  terpisah lagi seperti sebelumnya.
+   */
   function ebTrxDetailModalHtml_(t){
-    var isPdf = /\.pdf(\?|$)/i.test(t.receiptUrl||'');
-    var receiptHtml;
-    if(!t.receiptUrl){
-      receiptHtml = '<div class="eb-receipt-fallback">'+ICONS.reports+'<span>Tidak ada foto struk.</span></div>';
-    } else if(isPdf){
-      receiptHtml =
-        '<a href="'+escapeHtml(t.receiptUrl)+'" target="_blank" rel="noopener" class="eb-receipt-doc">' +
-          '<span class="eb-receipt-doc-icon">'+ICONS.reports+'</span>' +
-          '<span class="eb-receipt-doc-info"><strong>Struk (PDF)</strong><span>Ketuk untuk membuka file</span></span>' +
-          '<span class="eb-receipt-doc-arrow">'+ICONS.chevronDown+'</span>' +
-        '</a>';
-    } else {
-      receiptHtml =
-        '<div class="eb-receipt-preview" onclick="ebOpenReceiptLightbox_(\''+escapeHtml(t.receiptUrl)+'\')">' +
-          '<img src="'+escapeHtml(t.receiptUrl)+'" alt="Struk" loading="lazy" ' +
-            'onerror="this.closest(\'.eb-receipt-preview\').outerHTML=\'<a href=&quot;'+escapeHtml(t.receiptUrl)+'&quot; target=&quot;_blank&quot; rel=&quot;noopener&quot; class=&quot;eb-receipt-doc&quot;><span class=&quot;eb-receipt-doc-icon&quot;>'+ICONS.reports+'</span><span class=&quot;eb-receipt-doc-info&quot;><strong>Lihat Struk</strong><span>Ketuk untuk membuka file</span></span></a>\'">' +
-          '<span class="eb-receipt-zoom">'+ICONS.search+'</span>' +
-        '</div>';
-    }
+    var receiptHtml = t.receiptUrl
+      ? '<div class="doc-preview-grid">' +
+          docPreviewCard_({ label: 'Struk', url: t.receiptUrl, fileId: t.receiptFileId||'', isPdf: /\.pdf(\?|$)/i.test(t.receiptUrl||'') }, null) +
+        '</div>'
+      : '<div class="eb-receipt-fallback">'+ICONS.reports+'<span>Tidak ada foto struk.</span></div>';
     return (
       '<div class="modal-header eb-trx-modal-header"><span class="modal-title">Detail Transaksi</span>' +
       '<button class="modal-close" onclick="closeModal()">'+CLOSE_ICON+'</button></div>' +
@@ -16246,22 +16208,6 @@
       '</div>' +
       '<div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Tutup</button></div>'
     );
-  }
-
-  /** Lightbox sederhana full-screen untuk foto struk — dipanggil dari klik pada preview di
-   *  modal detail transaksi. Dipisah dari openModal biasa (pakai overlay sendiri, z-index lebih
-   *  tinggi) supaya menumpuk rapi di atas modal detail transaksi yang sedang terbuka. */
-  function ebOpenReceiptLightbox_(url){
-    var existing = document.getElementById('ebReceiptLightbox');
-    if(existing) existing.remove();
-    var box = document.createElement('div');
-    box.id = 'ebReceiptLightbox';
-    box.className = 'eb-lightbox';
-    box.innerHTML =
-      '<button type="button" class="eb-lightbox-close" aria-label="Tutup">'+CLOSE_ICON+'</button>' +
-      '<img src="'+escapeHtml(url)+'" alt="Struk">';
-    box.onclick = function(e){ if(e.target === box || e.target.closest('.eb-lightbox-close')) box.remove(); };
-    document.body.appendChild(box);
   }
 
   // =============================================================================
