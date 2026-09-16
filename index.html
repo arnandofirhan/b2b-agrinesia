@@ -15809,6 +15809,16 @@
       if(!canvas) return;
       if(canvas._chartInstance) canvas._chartInstance.destroy();
       var ctx = canvas.getContext('2d');
+      // FIX BUG NYATA (chart pecah jadi daftar teks vertikal "Rp0.001k, Rp0.0009k, ..." saat
+      // belum ada transaksi sama sekali / semua nilai 0): Chart.js menghitung skala sumbu-Y
+      // otomatis dari data — kalau SEMUA nilai persis 0, auto-scale-nya jatuh ke rentang
+      // pecahan sangat kecil (bukan 0..sekian ribu yang wajar), sehingga muncul puluhan tick
+      // dengan angka desimal aneh yang saling bertumpuk (persis yang terlihat di screenshot).
+      // FIX: kalau nilai tertinggi di data <= 0, paksa skala 0..10000 (rentang wajar utk
+      // "belum ada transaksi") lewat suggestedMax, dan beginAtZero:true supaya sumbu-Y selalu
+      // mulai dari 0. Label tick juga dibulatkan (Math.round) supaya tidak lagi menampilkan
+      // desimal panjang seperti "Rp0.0009k".
+      var maxVal = Math.max.apply(null, trend.map(function(t){ return t.totalAmount || 0; }));
       canvas._chartInstance = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -15827,7 +15837,12 @@
           plugins: { legend: { display: false },
             tooltip: { callbacks: { label: function(c){ return formatRupiah(c.parsed.y); } } } },
           scales: {
-            y: { ticks: { callback: function(v){ return 'Rp'+(v/1000)+'k'; } }, grid: { color: 'rgba(0,0,0,.05)' } },
+            y: {
+              beginAtZero: true,
+              suggestedMax: maxVal > 0 ? undefined : 10000,
+              ticks: { callback: function(v){ return 'Rp'+Math.round(v/1000)+'k'; } },
+              grid: { color: 'rgba(0,0,0,.05)' }
+            },
             x: { grid: { display: false } }
           }
         }
@@ -15838,62 +15853,82 @@
   // =============================================================================
   // ROLE EMPLOYEE — QR CODE
   // =============================================================================
+  var EB_QR_CACHE_ = null;
   function renderEmployeeQr(){
     var content = document.getElementById('content');
-    content.innerHTML = '<div class="spinner"></div>';
+    if(EB_QR_CACHE_){
+      ebRenderQrResult_(content, EB_QR_CACHE_);
+    } else {
+      content.innerHTML = '<div class="spinner"></div>';
+    }
     google.script.run
       .withSuccessHandler(function(res){
         if(STATE.currentPage !== 'eb-qr') return;
-        if(!res.success){
-          content.innerHTML = '<div class="empty-state"><div class="empty-state-icon">'+ICONS.cancel+'</div>' +
-            '<div class="empty-state-title">QR Code Belum Aktif</div>' +
-            '<div class="empty-state-sub">'+escapeHtml(res.message)+'</div></div>';
-          return;
-        }
-        content.innerHTML =
-          '<div class="eb-qr-page">' +
-            '<div class="eb-qr-card">' +
-              '<div class="eb-qr-card-header">' +
-                '<div class="eb-qr-logo">'+ICONS.dashboard+'</div>' +
-                '<div class="eb-qr-brand">CORPORATE MEMBER</div>' +
-              '</div>' +
-              '<div class="eb-qr-box" id="ebQrBox"></div>' +
-              '<div class="eb-qr-name">'+escapeHtml(res.fullName)+'</div>' +
-              '<div class="eb-qr-sub">'+escapeHtml(res.companyName)+'</div>' +
-              '<div class="eb-qr-idcard">ID: '+escapeHtml(res.idCardNumber)+'</div>' +
-            '</div>' +
-            '<div class="eb-qr-hint">Tunjukkan QR ini ke kasir saat berbelanja untuk mendapatkan potongan Corporate Benefit.</div>' +
-          '</div>';
-        ensureQrCodeJsLoaded_(function(){
-          var box = document.getElementById('ebQrBox');
-          if(!box) return;
-          box.innerHTML = '';
-          new QRCode(box, {
-            text: res.qrPayload,
-            width: 220, height: 220,
-            colorDark: '#0B3D2E', colorLight: '#ffffff',
-            correctLevel: QRCode.CorrectLevel.H
-          });
-        });
+        EB_QR_CACHE_ = res;
+        ebRenderQrResult_(content, res);
       })
-      .withFailureHandler(function(err){ handleBackendError(err, document.getElementById('content')); })
+      .withFailureHandler(function(err){
+        if(!EB_QR_CACHE_) handleBackendError(err, document.getElementById('content'));
+      })
       .ebGetMyQR(STATE.token);
+  }
+
+  function ebRenderQrResult_(content, res){
+    if(!res.success){
+      content.innerHTML = '<div class="empty-state"><div class="empty-state-icon">'+ICONS.cancel+'</div>' +
+        '<div class="empty-state-title">QR Code Belum Aktif</div>' +
+        '<div class="empty-state-sub">'+escapeHtml(res.message)+'</div></div>';
+      return;
+    }
+    content.innerHTML =
+      '<div class="eb-qr-page">' +
+        '<div class="eb-qr-card">' +
+          '<div class="eb-qr-card-header">' +
+            '<div class="eb-qr-logo">'+ICONS.dashboard+'</div>' +
+            '<div class="eb-qr-brand">CORPORATE MEMBER</div>' +
+          '</div>' +
+          '<div class="eb-qr-box" id="ebQrBox"></div>' +
+          '<div class="eb-qr-name">'+escapeHtml(res.fullName)+'</div>' +
+          '<div class="eb-qr-sub">'+escapeHtml(res.companyName)+'</div>' +
+          '<div class="eb-qr-idcard">ID: '+escapeHtml(res.idCardNumber)+'</div>' +
+        '</div>' +
+        '<div class="eb-qr-hint">Tunjukkan QR ini ke kasir saat berbelanja untuk mendapatkan potongan Corporate Benefit.</div>' +
+      '</div>';
+    ensureQrCodeJsLoaded_(function(){
+      var box = document.getElementById('ebQrBox');
+      if(!box) return;
+      box.innerHTML = '';
+      new QRCode(box, {
+        text: res.qrPayload,
+        width: 220, height: 220,
+        colorDark: '#0B3D2E', colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.H
+      });
+    });
   }
 
   // =============================================================================
   // ROLE EMPLOYEE — RIWAYAT TRANSAKSI
   // =============================================================================
-  var EB_EMP_TRX_CACHE_ = [];
+  // FIX: pola cache-lalu-refresh yang sama diterapkan di sini juga — dulu selalu spinner
+  // kosong tiap dibuka ulang.
+  var EB_EMP_TRX_CACHE_ = null;
   function renderEmployeeTransactions(){
     var content = document.getElementById('content');
-    content.innerHTML = '<div class="spinner"></div>';
+    if(EB_EMP_TRX_CACHE_){
+      content.innerHTML = ebEmpTransactionsHtml_(EB_EMP_TRX_CACHE_);
+    } else {
+      content.innerHTML = '<div class="spinner"></div>';
+    }
     google.script.run
       .withSuccessHandler(function(rows){
         if(STATE.currentPage !== 'eb-transactions') return;
         EB_EMP_TRX_CACHE_ = rows || [];
         content.innerHTML = ebEmpTransactionsHtml_(EB_EMP_TRX_CACHE_);
       })
-      .withFailureHandler(function(err){ handleBackendError(err, document.getElementById('content')); })
+      .withFailureHandler(function(err){
+        if(!EB_EMP_TRX_CACHE_) handleBackendError(err, document.getElementById('content'));
+      })
       .ebGetMyTransactions(STATE.token, null);
   }
 
@@ -15974,7 +16009,8 @@
   }
 
   function ebProfileHtml_(p){
-    var statusBadge = ebStatusBadge_(p.registrationStatus);
+    var initials = (p.fullName||'?').trim().split(/\s+/).slice(0,2).map(function(w){return w.charAt(0).toUpperCase();}).join('') || '?';
+
     // FIX BUG NYATA: sebelumnya "Foto KTP"/"Foto ID Card" ditampilkan sebagai kartu <a> polos
     // berisi ikon generik (ICONS.reports, ikon bar-chart) + link — BUKAN foto sungguhan. Itu
     // sebabnya terlihat seperti "kolom kosong untuk upload ulang", padahal filenya sendiri
@@ -15993,29 +16029,42 @@
       ? '<div class="doc-preview-empty">Belum ada dokumen diunggah</div>'
       : '<div class="doc-preview-grid">' + docs.map(function(d){ return docPreviewCard_(d, null); }).join('') + '</div>';
 
-    return '<div class="eb-profile">' +
-      '<div class="card eb-profile-card">' +
-        '<div class="eb-profile-avatar">'+escapeHtml((p.fullName||'?').charAt(0).toUpperCase())+'</div>' +
-        '<div class="eb-profile-name">'+escapeHtml(p.fullName)+'</div>' +
-        '<div class="eb-profile-company">'+escapeHtml(p.companyName)+'</div>' +
-        statusBadge +
+    // UI/UX dibuat SAMA PERSIS dengan "Profil Saya" milik Agent (profile-hero hijau + tombol
+    // Ganti Password menempel di header, Data Diri 2-kolom via agent-detail-grid, Dokumen pakai
+    // doc-preview-grid) — pakai ulang komponen/class yang sama, jadi konsisten & lebih ringkas
+    // (sebelumnya masing-masing card di halaman ini punya padding+jarak sendiri yang lebih
+    // longgar, itu yang bikin terasa "memakan banyak tempat").
+    var html = '<div class="profile-hero">' +
+      '<div class="profile-hero-avatar">'+escapeHtml(initials)+'</div>' +
+      '<div class="profile-hero-info">' +
+        '<div class="profile-hero-name">'+escapeHtml(p.fullName||'-')+'</div>' +
+        '<div class="profile-hero-id">'+escapeHtml(p.idCardNumber||'-')+' &middot; '+escapeHtml(p.companyName||'-')+'</div>' +
+        '<div class="profile-hero-badges">' +
+          statusBadge(p.registrationStatus) + statusBadge(p.employeeStatus) +
+        '</div>' +
       '</div>' +
-      '<div class="card">' +
-        '<div class="section-title">Data Diri</div>' +
-        '<div class="eb-detail-row"><span>Nomor ID Card</span><strong>'+escapeHtml(p.idCardNumber)+'</strong></div>' +
-        '<div class="eb-detail-row"><span>Email</span><strong>'+escapeHtml(p.email)+'</strong></div>' +
-        '<div class="eb-detail-row"><span>Perusahaan</span><strong>'+escapeHtml(p.companyName)+'</strong></div>' +
-        '<div class="eb-detail-row"><span>Status Karyawan</span><strong>'+escapeHtml(p.employeeStatus||'-')+'</strong></div>' +
-      '</div>' +
-      '<div class="card">' +
-        '<div class="section-title">Dokumen</div>' +
-        docsHtml +
-      '</div>' +
-      '<div class="card">' +
-        '<div class="section-title">Keamanan</div>' +
-        '<button class="btn btn-secondary" style="width:100%;" onclick="openChangePasswordModal()">Ubah Password</button>' +
+      '<button type="button" class="profile-hero-pw-btn" onclick="openChangePasswordModal()">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>' +
+        '<span>Ganti Password</span>' +
+      '</button>' +
+    '</div>';
+
+    html += '<div class="card">' +
+      '<div class="card-header"><span class="card-title">Data Diri</span></div>' +
+      '<div class="agent-detail-grid">' +
+        detailField_('Nomor ID Card', escapeHtml(p.idCardNumber)) +
+        detailField_('Email', escapeHtml(p.email)) +
+        detailField_('No. Telepon / WhatsApp', escapeHtml(p.phone||'-')) +
+        detailField_('Perusahaan', escapeHtml(p.companyName), true) +
       '</div>' +
     '</div>';
+
+    html += '<div class="card">' +
+      '<div class="card-header"><span class="card-title">Dokumen Registrasi</span></div>' +
+      docsHtml +
+    '</div>';
+
+    return html;
   }
 
   function ebStatusBadge_(status){
