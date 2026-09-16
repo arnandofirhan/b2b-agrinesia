@@ -15778,27 +15778,35 @@
   // =============================================================================
 
   // ---------- Lazy-load libs (jsQR untuk scan kamera, qrcode.js untuk generate QR) ----------
-  // FIX BUG "kamera belum bisa nyala": versi lama tidak punya script.onerror sama sekali —
-  // kalau CDN jsQR gagal dimuat (offline sesaat, diblokir extension/adblock, dll), callback
-  // ANTREAN (JSQR_CALLBACKS_) tidak pernah dipanggil DAN JSQR_LOADED_ sudah kadung true,
-  // jadi tombol "Buka Kamera" terlihat seperti tidak melakukan apa-apa selamanya (tidak ada
-  // retry, tidak ada pesan error). Sekarang: onerror mereset JSQR_LOADED_ (supaya percobaan
-  // berikutnya bisa retry re-inject script) dan memanggil tiap callback dengan flag error
-  // supaya UI bisa menampilkan pesan yang jelas alih-alih diam saja.
+  // FIX BUG "kamera belum bisa nyala / gagal memuat pustaka pemindai QR": URL lama
+  // (cdnjs.cloudflare.com/ajax/libs/jsQR/...) SELALU 404 — jsQR TIDAK PERNAH didaftarkan
+  // di katalog cdnjs sama sekali (beda dari qrcode.js di bawah yang memang ada di cdnjs).
+  // Jadi bukan soal koneksi lambat, melainkan salah CDN dari awal. jsQR cuma didistribusikan
+  // lewat jsDelivr/unpkg (source: https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/). Sekarang
+  // pakai jsDelivr sbg CDN utama, dgn unpkg sbg fallback otomatis kalau jsDelivr bermasalah,
+  // supaya tidak bergantung pada satu penyedia saja.
   var JSQR_LOADED_ = false, JSQR_CALLBACKS_ = [];
+  var JSQR_CDN_URLS_ = [
+    'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js',
+    'https://unpkg.com/jsqr@1.4.0/dist/jsQR.min.js'
+  ];
   function ensureJsQrLoaded_(callback){
     if(typeof jsQR !== 'undefined'){ callback(true); return; }
     JSQR_CALLBACKS_.push(callback);
     if(JSQR_LOADED_) return;
     JSQR_LOADED_ = true;
-    var script = document.createElement('script');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js';
-    script.onload = function(){ JSQR_CALLBACKS_.forEach(function(cb){ cb(true); }); JSQR_CALLBACKS_ = []; };
-    script.onerror = function(){
-      JSQR_LOADED_ = false; // izinkan retry di percobaan "Buka Kamera" berikutnya
-      JSQR_CALLBACKS_.forEach(function(cb){ cb(false); }); JSQR_CALLBACKS_ = [];
-    };
-    document.head.appendChild(script);
+    (function tryLoad(cdnIndex){
+      if(cdnIndex >= JSQR_CDN_URLS_.length){
+        JSQR_LOADED_ = false; // izinkan retry di percobaan "Buka Kamera" berikutnya
+        JSQR_CALLBACKS_.forEach(function(cb){ cb(false); }); JSQR_CALLBACKS_ = [];
+        return;
+      }
+      var script = document.createElement('script');
+      script.src = JSQR_CDN_URLS_[cdnIndex];
+      script.onload = function(){ JSQR_CALLBACKS_.forEach(function(cb){ cb(true); }); JSQR_CALLBACKS_ = []; };
+      script.onerror = function(){ tryLoad(cdnIndex + 1); }; // CDN ini gagal, coba CDN berikutnya
+      document.head.appendChild(script);
+    })(0);
   }
   var QRCODEJS_LOADED_ = false, QRCODEJS_CALLBACKS_ = [];
   function ensureQrCodeJsLoaded_(callback){
