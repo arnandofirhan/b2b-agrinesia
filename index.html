@@ -3729,7 +3729,38 @@
   .eb-qr-box{
     background:#fff;padding:14px;border-radius:16px;border:1px solid var(--ag-gray-100);
     display:flex;align-items:center;justify-content:center;min-height:220px;min-width:220px;
+    position:relative;
   }
+  .eb-qr-box canvas{display:block;border-radius:4px;}
+  /* ---- QR rotasi otomatis: overlay abu-abu + tombol refresh saat window 60 detik habis ---- */
+  .eb-qr-box-expired canvas{filter:grayscale(1) opacity(.25);}
+  .eb-qr-expired-overlay{
+    position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:10px;opacity:0;pointer-events:none;transition:opacity .2s ease;border-radius:16px;
+  }
+  .eb-qr-expired-overlay-visible{opacity:1;pointer-events:auto;}
+  .eb-qr-refresh-btn{
+    width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;
+    background:var(--ag-green);color:#fff;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 6px 18px rgba(11,61,46,.28);transition:transform .15s ease;
+  }
+  .eb-qr-refresh-btn svg{width:24px;height:24px;}
+  .eb-qr-refresh-btn:hover{transform:scale(1.06);}
+  .eb-qr-refresh-btn:active{transform:scale(.94);}
+  .eb-qr-refresh-btn-loading svg{animation:ebQrRefreshSpin .7s linear infinite;}
+  @keyframes ebQrRefreshSpin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+  .eb-qr-expired-label{font-size:11.5px;font-weight:700;color:var(--ag-gray-500,#666);letter-spacing:.02em;}
+  .eb-qr-countdown-row{
+    display:flex;align-items:center;justify-content:center;gap:6px;margin-top:14px;
+    font-size:11.5px;font-weight:700;color:var(--ag-gray-400);
+  }
+  .eb-qr-countdown-ring{transform:rotate(-90deg);flex-shrink:0;}
+  .eb-qr-countdown-track{fill:none;stroke:var(--ag-gray-100);stroke-width:2;}
+  .eb-qr-countdown-progress{
+    fill:none;stroke:var(--ag-green);stroke-width:2;stroke-linecap:round;
+    transition:stroke-dashoffset .25s linear;
+  }
+  .eb-qr-expired-text{color:var(--ag-gray-400);}
   .eb-qr-name{font-size:16px;font-weight:800;color:var(--ag-gray-900,#1a1a1a);margin-top:16px;text-align:center;}
   .eb-qr-sub{font-size:12.5px;color:var(--ag-gray-500,#666);margin-top:2px;text-align:center;}
   .eb-qr-idcard{
@@ -5980,6 +6011,12 @@
     // halaman lain, supaya kamera HP tidak terus menyala di background sia-sia.
     if(pageKey !== 'eb-scan' && typeof stopEbScan_ === 'function'){
       stopEbScan_();
+    }
+    // Hentikan countdown + auto-refresh QR (role EMPLOYEE) begitu pindah dari halaman QR Code
+    // ke halaman lain, supaya tidak terus menembak ebGetMyQR di background setiap menit
+    // walau karyawan sudah lama meninggalkan halaman itu.
+    if(pageKey !== 'eb-qr' && typeof ebClearQrTimers_ === 'function'){
+      ebClearQrTimers_();
     }
     // Catat perpindahan ini ke riwayat browser (lihat initAppHistory_ di bawah) supaya
     // gesture/tombol back bawaan HP tahu ada "halaman sebelumnya" di DALAM app, dan balik
@@ -16005,12 +16042,33 @@
   // ROLE EMPLOYEE — QR CODE
   // =============================================================================
   var EB_QR_CACHE_ = null;
+  // Harus SAMA PERSIS dengan EB_QR_ROTATE_SECONDS di backend (EmployeeBenefit.gs) supaya
+  // countdown di UI sinkron dengan window validasi di ebStoreValidateQR.
+  var EB_QR_ROTATE_SECONDS_ = 60;
+  // countdownId = interval detik-per-detik update ring+angka; refreshTimeoutId = timer sekali-jalan
+  // yang menembak ulang ebGetMyQR pas window berganti. clockOffsetMs = selisih jam device vs server
+  // (dari res.serverNow), supaya countdown akurat walau jam HP karyawan sedikit meleset.
+  var EB_QR_TIMER_STATE_ = { countdownId: null, refreshTimeoutId: null, clockOffsetMs: 0, expiresAt: 0, expired: false };
+
   function renderEmployeeQr(){
     var content = document.getElementById('content');
     if(EB_QR_CACHE_){
       ebRenderQrResult_(content, EB_QR_CACHE_);
     } else {
       content.innerHTML = '<div class="spinner"></div>';
+    }
+    ebFetchQr_();
+  }
+
+  /** Ambil QR (OTP window sekarang) dari backend lalu render + jadwalkan auto-refresh
+   *  berikutnya begitu window ini habis. isManualRefresh=true dipakai saat user klik tombol
+   *  refresh di tengah QR abu-abu (expired) — supaya kita bisa kasih state "memuat..." di
+   *  tombol itu sendiri, bukan spinner full-page yang bikin card kedip. */
+  function ebFetchQr_(isManualRefresh){
+    var content = document.getElementById('content');
+    if(isManualRefresh){
+      var refreshBtn = document.getElementById('ebQrRefreshBtn');
+      if(refreshBtn){ refreshBtn.classList.add('eb-qr-refresh-btn-loading'); }
     }
     google.script.run
       .withSuccessHandler(function(res){
@@ -16019,12 +16077,24 @@
         ebRenderQrResult_(content, res);
       })
       .withFailureHandler(function(err){
+        if(isManualRefresh){
+          var btn = document.getElementById('ebQrRefreshBtn');
+          if(btn) btn.classList.remove('eb-qr-refresh-btn-loading');
+          showToast('Gagal memuat ulang QR: ' + (err.message || err), 'error');
+          return;
+        }
         if(!EB_QR_CACHE_) handleBackendError(err, document.getElementById('content'));
       })
       .ebGetMyQR(STATE.token);
   }
 
+  function ebClearQrTimers_(){
+    if(EB_QR_TIMER_STATE_.countdownId){ clearInterval(EB_QR_TIMER_STATE_.countdownId); EB_QR_TIMER_STATE_.countdownId = null; }
+    if(EB_QR_TIMER_STATE_.refreshTimeoutId){ clearTimeout(EB_QR_TIMER_STATE_.refreshTimeoutId); EB_QR_TIMER_STATE_.refreshTimeoutId = null; }
+  }
+
   function ebRenderQrResult_(content, res){
+    ebClearQrTimers_();
     if(!res.success){
       content.innerHTML = '<div class="empty-state"><div class="empty-state-icon">'+ICONS.cancel+'</div>' +
         '<div class="empty-state-title">QR Code Belum Aktif</div>' +
@@ -16038,24 +16108,124 @@
             '<div class="eb-qr-logo">'+ICONS.dashboard+'</div>' +
             '<div class="eb-qr-brand">CORPORATE MEMBER</div>' +
           '</div>' +
-          '<div class="eb-qr-box" id="ebQrBox"></div>' +
+          '<div class="eb-qr-box" id="ebQrBox">' +
+            '<canvas id="ebQrCanvas"></canvas>' +
+            '<div class="eb-qr-expired-overlay" id="ebQrExpiredOverlay">' +
+              '<button class="eb-qr-refresh-btn" id="ebQrRefreshBtn" onclick="ebFetchQr_(true)" title="Muat ulang QR">'+ICONS.refresh+'</button>' +
+              '<div class="eb-qr-expired-label">QR kadaluarsa</div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="eb-qr-countdown-row" id="ebQrCountdownRow">' +
+            '<svg class="eb-qr-countdown-ring" width="18" height="18" viewBox="0 0 18 18">' +
+              '<circle cx="9" cy="9" r="7.5" class="eb-qr-countdown-track"></circle>' +
+              '<circle cx="9" cy="9" r="7.5" class="eb-qr-countdown-progress" id="ebQrCountdownCircle"></circle>' +
+            '</svg>' +
+            '<span id="ebQrCountdownText">Berlaku 60 detik</span>' +
+          '</div>' +
           '<div class="eb-qr-name">'+escapeHtml(res.fullName)+'</div>' +
           '<div class="eb-qr-sub">'+escapeHtml(res.companyName)+'</div>' +
           '<div class="eb-qr-idcard">ID: '+escapeHtml(res.idCardNumber)+'</div>' +
         '</div>' +
-        '<div class="eb-qr-hint">Tunjukkan QR ini ke kasir saat berbelanja untuk mendapatkan potongan Corporate Benefit.</div>' +
+        '<div class="eb-qr-hint">Tunjukkan QR ini ke kasir saat berbelanja untuk mendapatkan potongan Corporate Benefit. QR berubah otomatis tiap menit demi keamanan.</div>' +
       '</div>';
+
+    // clockOffsetMs: serverNow - Date.now() saat respons diterima, dipakai supaya countdown
+    // tetap akurat walau jam device karyawan sedikit meleset dari jam server.
+    EB_QR_TIMER_STATE_.clockOffsetMs = (res.serverNow || Date.now()) - Date.now();
+    EB_QR_TIMER_STATE_.expiresAt = res.expiresAt || (Date.now() + EB_QR_ROTATE_SECONDS_ * 1000);
+    EB_QR_TIMER_STATE_.expired = false;
+
+    ebDrawQrCanvas_(res.qrPayload);
+    ebStartQrCountdown_();
+  }
+
+  /** Render QR pakai <canvas> beresolusi tinggi (mengikuti devicePixelRatio layar) — sebelumnya
+   *  qrcode.js menggambar QR pas 220x220 CSS px tanpa memperhitungkan layar retina/HP modern
+   *  (devicePixelRatio 2-3x), jadi tiap "modul" QR ikut di-upscale blur oleh browser persis
+   *  seperti memperbesar foto kecil. Sekarang canvas internal digambar di
+   *  220 * devicePixelRatio px (tajam secara fisik), lalu di-downscale balik ke 220 CSS px
+   *  lewat width/height style — hasilnya QR tetap tajam di layar apa pun & lebih gampang discan. */
+  function ebDrawQrCanvas_(payload){
     ensureQrCodeJsLoaded_(function(){
-      var box = document.getElementById('ebQrBox');
-      if(!box) return;
-      box.innerHTML = '';
-      new QRCode(box, {
-        text: res.qrPayload,
-        width: 220, height: 220,
+      var canvas = document.getElementById('ebQrCanvas');
+      if(!canvas) return;
+      var cssSize = 220;
+      var dpr = Math.max(1, window.devicePixelRatio || 1);
+      // qrcode.js butuh sebuah container DOM utk digambar sendiri (dia bikin <canvas> internal),
+      // jadi kita pakai div sementara di memori, lalu salin hasilnya ke canvas final kita dengan
+      // resolusi fisik yang sudah dikali dpr.
+      var tmp = document.createElement('div');
+      new QRCode(tmp, {
+        text: payload,
+        width: cssSize * dpr, height: cssSize * dpr,
         colorDark: '#0B3D2E', colorLight: '#ffffff',
         correctLevel: QRCode.CorrectLevel.H
       });
+      // qrcode.js render async lewat setTimeout(0) di internalnya sebelum <canvas>/<img> siap.
+      setTimeout(function(){
+        var srcCanvas = tmp.querySelector('canvas');
+        var srcImg = tmp.querySelector('img');
+        canvas.width = cssSize * dpr;
+        canvas.height = cssSize * dpr;
+        canvas.style.width = cssSize + 'px';
+        canvas.style.height = cssSize + 'px';
+        var ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = false; // modul QR harus tegas kotak-kotak, bukan di-blur halus
+        if(srcCanvas){
+          ctx.drawImage(srcCanvas, 0, 0, canvas.width, canvas.height);
+        } else if(srcImg){
+          ctx.drawImage(srcImg, 0, 0, canvas.width, canvas.height);
+        }
+      }, 30);
     });
+  }
+
+  function ebStartQrCountdown_(){
+    ebClearQrTimers_();
+    function tick(){
+      var nowServer = Date.now() + EB_QR_TIMER_STATE_.clockOffsetMs;
+      var msLeft = EB_QR_TIMER_STATE_.expiresAt - nowServer;
+      var text = document.getElementById('ebQrCountdownText');
+      var circle = document.getElementById('ebQrCountdownCircle');
+      if(msLeft <= 0){
+        if(!EB_QR_TIMER_STATE_.expired){
+          EB_QR_TIMER_STATE_.expired = true;
+          ebShowQrExpired_();
+        }
+        return;
+      }
+      var secLeft = Math.ceil(msLeft / 1000);
+      if(text) text.textContent = 'Berlaku ' + secLeft + ' detik';
+      if(circle){
+        var frac = Math.max(0, Math.min(1, msLeft / (EB_QR_ROTATE_SECONDS_ * 1000)));
+        var circumference = 2 * Math.PI * 7.5;
+        circle.style.strokeDasharray = circumference;
+        circle.style.strokeDashoffset = circumference * (1 - frac);
+      }
+    }
+    tick();
+    EB_QR_TIMER_STATE_.countdownId = setInterval(tick, 250);
+    // Jadwalkan auto-refresh TEPAT saat window habis, supaya QR baru sudah siap kasir scan
+    // tanpa perlu karyawan klik apapun (tombol refresh manual cuma fallback kalau auto gagal,
+    // mis. koneksi lemot).
+    var msUntilExpiry = EB_QR_TIMER_STATE_.expiresAt - (Date.now() + EB_QR_TIMER_STATE_.clockOffsetMs);
+    EB_QR_TIMER_STATE_.refreshTimeoutId = setTimeout(function(){
+      if(STATE.currentPage !== 'eb-qr') return;
+      ebFetchQr_();
+    }, Math.max(0, msUntilExpiry));
+  }
+
+  /** QR jadi abu-abu (grayscale) + tombol refresh besar di tengah begitu window 60 detik habis
+   *  dan belum sempat auto-refresh (mis. request auto-refresh masih di jalan / koneksi lemot).
+   *  Auto-refresh tetap jalan di background lewat timer di ebStartQrCountdown_; overlay ini
+   *  cuma jaring pengaman visual + jalan pintas manual kalau karyawan tidak mau menunggu. */
+  function ebShowQrExpired_(){
+    var box = document.getElementById('ebQrBox');
+    var overlay = document.getElementById('ebQrExpiredOverlay');
+    var countdownRow = document.getElementById('ebQrCountdownRow');
+    if(box) box.classList.add('eb-qr-box-expired');
+    if(overlay) overlay.classList.add('eb-qr-expired-overlay-visible');
+    if(countdownRow) countdownRow.innerHTML = '<span class="eb-qr-expired-text">QR ini sudah tidak berlaku</span>';
   }
 
   // =============================================================================
@@ -16520,7 +16690,19 @@
         showToast('Gagal memuat pustaka pemindai QR. Periksa koneksi internet lalu coba lagi.', 'error');
         return;
       }
-      navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: EB_SCAN_STATE_.facingMode } }, audio: false })
+      // FIX PERFORMA TAMBAHAN: sebelumnya resolusi kamera dibiarkan default browser, yang di
+      // banyak HP modern otomatis minta 1080p/4K dari sensor (walau nanti kita downscale sendiri
+      // ke 480px sebelum decode di ebScanTick_). Meminta resolusi ideal 720p di sini mengurangi
+      // beban ENCODE video dari kamera itu sendiri (bukan cuma beban decode QR kita), sehingga
+      // preview kamera & loop scan sama-sama terasa lebih ringan tanpa mengurangi jarak/kualitas
+      // baca QR — 720p sudah jauh lebih dari cukup untuk jsQR.
+      navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: EB_SCAN_STATE_.facingMode },
+          width: { ideal: 1280 }, height: { ideal: 720 }
+        },
+        audio: false
+      })
         .then(function(stream){
           EB_SCAN_STATE_.starting = false;
           EB_SCAN_STATE_.stream = stream;
