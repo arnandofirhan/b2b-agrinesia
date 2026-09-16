@@ -3670,13 +3670,27 @@
 
   .eb-chart-wrap{position:relative;width:100%;height:220px;}
 
-  .eb-recent-list, .eb-trx-list{display:flex;flex-direction:column;gap:2px;}
+  .eb-recent-list{display:flex;flex-direction:column;gap:2px;}
+  .eb-trx-list{display:flex;flex-direction:column;gap:8px;}
   .eb-recent-row, .eb-trx-item{
     display:flex;align-items:center;gap:12px;padding:12px 6px;border-radius:12px;cursor:pointer;
-    transition:background .15s ease;
+    transition:background .15s ease, transform .15s ease, box-shadow .15s ease;
   }
   .eb-recent-row:hover, .eb-trx-item:hover{background:var(--ag-gray-50);}
   .eb-recent-row:active, .eb-trx-item:active{background:var(--ag-green-soft);}
+  /* Riwayat Transaksi — kartu per-baris yang lebih "modern": border tipis + bayangan halus,
+     bukan lagi baris polos tanpa batas antar item (poin 2 permintaan user). */
+  .eb-trx-item{
+    background:#fff;border:1px solid var(--ag-gray-100);padding:12px;border-radius:14px;
+    box-shadow:0 1px 2px rgba(16,24,40,.03);
+  }
+  .eb-trx-item:hover{border-color:var(--ag-gray-200);box-shadow:0 4px 10px rgba(16,24,40,.06);transform:translateY(-1px);}
+  .eb-trx-item:active{transform:translateY(0);}
+  .eb-trx-icon{
+    width:40px;height:40px;border-radius:12px;background:var(--ag-green-soft);color:var(--ag-green);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  }
+  .eb-trx-icon svg{width:18px;height:18px;}
   .eb-recent-icon{
     width:38px;height:38px;border-radius:12px;background:var(--ag-green-soft);color:var(--ag-green);
     display:flex;align-items:center;justify-content:center;flex-shrink:0;
@@ -3707,12 +3721,65 @@
   .eb-detail-amount{color:var(--ag-green) !important;font-size:16px;}
   .eb-detail-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--ag-gray-400);margin:14px 0 8px;}
 
-  .eb-receipt-preview{display:block;border-radius:14px;overflow:hidden;border:1px solid var(--ag-gray-200);}
+  /* ---- Modal Detail Transaksi (versi modern — poin 1 permintaan user) ---- */
+  .eb-trx-modal-header::before{background:linear-gradient(135deg,var(--ag-green),#1c8f5c);}
+  .eb-trx-modal-body{padding-top:4px;}
+  .eb-trx-modal-amount-wrap{
+    text-align:center;padding:18px 12px 16px;margin-bottom:6px;border-radius:16px;
+    background:linear-gradient(160deg,var(--ag-green-soft) 0%,#fff 100%);border:1px solid var(--ag-gray-100);
+  }
+  .eb-trx-modal-amount{font-size:26px;font-weight:800;color:var(--ag-dark-green,var(--ag-green));letter-spacing:-.02em;}
+  .eb-trx-modal-sub{font-size:12px;color:var(--ag-gray-400);margin-top:4px;font-weight:600;}
+
+  .eb-receipt-preview{
+    display:block;position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--ag-gray-200);
+    cursor:zoom-in;
+  }
   .eb-receipt-preview img{width:100%;display:block;object-fit:cover;max-height:320px;}
+  .eb-receipt-zoom{
+    position:absolute;right:8px;bottom:8px;width:30px;height:30px;border-radius:50%;
+    background:rgba(0,0,0,.55);color:#fff;display:flex;align-items:center;justify-content:center;
+  }
+  .eb-receipt-zoom svg{width:15px;height:15px;}
   .eb-receipt-fallback{
     padding:20px;text-align:center;border-radius:14px;border:1.5px dashed var(--ag-gray-200);
-    color:var(--ag-gray-400);font-size:12.5px;
+    color:var(--ag-gray-400);font-size:12.5px;display:flex;flex-direction:column;align-items:center;gap:8px;
   }
+  .eb-receipt-fallback svg{width:22px;height:22px;opacity:.5;}
+  /* Kartu dokumen untuk struk berformat PDF/non-image — sebelumnya PDF cuma bikin <img> gagal
+     diam-diam (broken image icon), sekarang tampil sebagai kartu file yang jelas & bisa diketuk. */
+  .eb-receipt-doc{
+    display:flex;align-items:center;gap:12px;padding:14px;border-radius:14px;
+    border:1px solid var(--ag-gray-200);text-decoration:none;color:inherit;background:var(--ag-gray-50);
+    transition:background .15s ease;
+  }
+  .eb-receipt-doc:hover{background:var(--ag-green-soft);}
+  .eb-receipt-doc-icon{
+    width:40px;height:40px;border-radius:11px;background:#fff;color:var(--ag-green);flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(16,24,40,.06);
+  }
+  .eb-receipt-doc-icon svg{width:19px;height:19px;}
+  .eb-receipt-doc-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;}
+  .eb-receipt-doc-info strong{font-size:13px;color:var(--ag-gray-900,#1a1a1a);}
+  .eb-receipt-doc-info span{font-size:11.5px;color:var(--ag-gray-400);}
+  .eb-receipt-doc-arrow{color:var(--ag-gray-400);transform:rotate(-90deg);flex-shrink:0;display:flex;}
+  .eb-receipt-doc-arrow svg{width:16px;height:16px;}
+
+  /* Lightbox full-screen untuk foto struk (dipicu klik pada .eb-receipt-preview) */
+  .eb-lightbox{
+    position:fixed;inset:0;z-index:3000;background:rgba(10,14,12,.92);
+    display:flex;align-items:center;justify-content:center;padding:28px;cursor:zoom-out;
+    animation:ebLightboxIn .15s ease;
+  }
+  @keyframes ebLightboxIn{from{opacity:0;}to{opacity:1;}}
+  .eb-lightbox img{max-width:100%;max-height:100%;border-radius:8px;box-shadow:0 10px 40px rgba(0,0,0,.4);cursor:default;}
+  .eb-lightbox-close{
+    position:absolute;top:18px;right:18px;width:38px;height:38px;border-radius:50%;
+    background:rgba(255,255,255,.12);color:#fff;border:none;display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+  }
+  .eb-lightbox-close svg{width:18px;height:18px;}
+  .eb-lightbox-close:hover{background:rgba(255,255,255,.22);}
 
   /* ---- QR Code page ---- */
   .eb-qr-page{display:flex;flex-direction:column;align-items:center;gap:16px;padding:12px 0 24px;}
@@ -4621,7 +4688,8 @@
     moreHoriz: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>',
     power: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><path d="M12 2v10"/></svg>',
     location: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>',
-    cart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1.6"/><circle cx="19" cy="21" r="1.6"/><path d="M2.5 3h2.4l2.2 12.1a2 2 0 0 0 2 1.65h8.1a2 2 0 0 0 2-1.6L21 8H6"/></svg>'
+    cart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1.6"/><circle cx="19" cy="21" r="1.6"/><path d="M2.5 3h2.4l2.2 12.1a2 2 0 0 0 2 1.65h8.1a2 2 0 0 0 2-1.6L21 8H6"/></svg>',
+    search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>'
   };
 
   // ---------- Menu definition per role ----------
@@ -4667,7 +4735,7 @@
     { key: 'master',    label: 'Master Data',       items: ['agents','products','stores'] },
     { key: 'laporan',   label: 'Laporan & Jadwal',  items: ['reports','calendar'] },
     { key: 'sistem',    label: 'Sistem',            items: ['users','settings','dashboard-settings','audit-log'] },
-    { key: 'eb-menu',   label: 'Employee Benefit',  items: ['eb-companies','eb-employees','eb-store-users','eb-qr','eb-transactions','eb-profile','eb-scan'] }
+    { key: 'eb-menu',   label: 'Employee Benefit',  items: ['eb-companies','eb-employees','eb-store-users','eb-qr','eb-transactions','eb-profile','eb-scan','eb-store-transactions'] }
   ];
   // Which groups start expanded by default (persisted in-session via SIDEBAR_GROUP_STATE_ below).
   var SIDEBAR_GROUP_STATE_ = { transaksi: true, master: true, laporan: true, sistem: true, 'eb-menu': true };
@@ -16111,6 +16179,7 @@
     }
     var rowsHtml = rows.map(function(t){
       return '<div class="eb-trx-item" onclick="openEbTrxDetail_(\''+escapeHtml(t.trxId)+'\')">' +
+        '<div class="eb-trx-icon">'+ICONS.cart+'</div>' +
         '<div class="eb-trx-item-left">' +
           '<div class="eb-trx-store">'+escapeHtml(t.storeName||'-')+'</div>' +
           '<div class="eb-trx-meta">No. '+escapeHtml(t.trxNumber||'-')+' &middot; '+formatDateTimeDMY_(t.createdAt)+'</div>' +
@@ -16132,25 +16201,67 @@
       for(var j=0;j<EB_EMP_DASH_CACHE_.recent.length;j++){ if(EB_EMP_DASH_CACHE_.recent[j].trxId === trxId){ t = EB_EMP_DASH_CACHE_.recent[j]; break; } }
     }
     if(!t) return;
-    var receiptHtml = t.receiptUrl
-      ? '<a href="'+escapeHtml(t.receiptUrl)+'" target="_blank" class="eb-receipt-preview">' +
-          '<img src="'+escapeHtml(t.receiptUrl)+'" alt="Struk" onerror="this.parentElement.innerHTML=\'<div class=&quot;eb-receipt-fallback&quot;>Lihat Struk (PDF/File)</div>\'">' +
-        '</a>'
-      : '<div class="eb-receipt-fallback">Tidak ada foto struk.</div>';
-    openModal(
-      '<div class="modal-header"><span class="modal-title">Detail Transaksi</span>' +
+    openModal(ebTrxDetailModalHtml_(t), 'modal-sm');
+  }
+
+  /** HTML modal detail transaksi — dipakai bareng oleh role EMPLOYEE & STORE (openEbTrxDetail_
+   *  dan openEbStoreTrxDetail_) supaya tampilannya konsisten. Header pakai gaya "receipt card"
+   *  (nominal besar di atas, badge status), dan area struk mendeteksi otomatis apakah file-nya
+   *  gambar (tampil langsung sebagai preview, klik = lightbox penuh) atau PDF/file lain (tampil
+   *  sebagai kartu dokumen dengan tombol buka), bukan cuma <img> polos yang gagal diam-diam. */
+  function ebTrxDetailModalHtml_(t){
+    var isPdf = /\.pdf(\?|$)/i.test(t.receiptUrl||'');
+    var receiptHtml;
+    if(!t.receiptUrl){
+      receiptHtml = '<div class="eb-receipt-fallback">'+ICONS.reports+'<span>Tidak ada foto struk.</span></div>';
+    } else if(isPdf){
+      receiptHtml =
+        '<a href="'+escapeHtml(t.receiptUrl)+'" target="_blank" rel="noopener" class="eb-receipt-doc">' +
+          '<span class="eb-receipt-doc-icon">'+ICONS.reports+'</span>' +
+          '<span class="eb-receipt-doc-info"><strong>Struk (PDF)</strong><span>Ketuk untuk membuka file</span></span>' +
+          '<span class="eb-receipt-doc-arrow">'+ICONS.chevronDown+'</span>' +
+        '</a>';
+    } else {
+      receiptHtml =
+        '<div class="eb-receipt-preview" onclick="ebOpenReceiptLightbox_(\''+escapeHtml(t.receiptUrl)+'\')">' +
+          '<img src="'+escapeHtml(t.receiptUrl)+'" alt="Struk" loading="lazy" ' +
+            'onerror="this.closest(\'.eb-receipt-preview\').outerHTML=\'<a href=&quot;'+escapeHtml(t.receiptUrl)+'&quot; target=&quot;_blank&quot; rel=&quot;noopener&quot; class=&quot;eb-receipt-doc&quot;><span class=&quot;eb-receipt-doc-icon&quot;>'+ICONS.reports+'</span><span class=&quot;eb-receipt-doc-info&quot;><strong>Lihat Struk</strong><span>Ketuk untuk membuka file</span></span></a>\'">' +
+          '<span class="eb-receipt-zoom">'+ICONS.search+'</span>' +
+        '</div>';
+    }
+    return (
+      '<div class="modal-header eb-trx-modal-header"><span class="modal-title">Detail Transaksi</span>' +
       '<button class="modal-close" onclick="closeModal()">'+CLOSE_ICON+'</button></div>' +
-      '<div class="modal-body">' +
-        '<div class="eb-detail-row"><span>Nomor Transaksi</span><strong>'+escapeHtml(t.trxNumber||'-')+'</strong></div>' +
+      '<div class="modal-body eb-trx-modal-body">' +
+        '<div class="eb-trx-modal-amount-wrap">' +
+          '<div class="eb-trx-modal-amount">'+formatRupiah(t.amount)+'</div>' +
+          '<div class="eb-trx-modal-sub">'+escapeHtml(t.trxNumber||'-')+'</div>' +
+        '</div>' +
+        (t.employeeName ? '<div class="eb-detail-row"><span>Karyawan</span><strong>'+escapeHtml(t.employeeName)+'</strong></div>' : '') +
+        (t.companyName ? '<div class="eb-detail-row"><span>Perusahaan</span><strong>'+escapeHtml(t.companyName)+'</strong></div>' : '') +
         '<div class="eb-detail-row"><span>Store</span><strong>'+escapeHtml(t.storeName||'-')+'</strong></div>' +
         '<div class="eb-detail-row"><span>Tanggal</span><strong>'+formatDateTimeDMY_(t.createdAt)+'</strong></div>' +
-        '<div class="eb-detail-row"><span>Nominal</span><strong class="eb-detail-amount">'+formatRupiah(t.amount)+'</strong></div>' +
         '<div class="eb-detail-label">Foto Struk</div>' +
         receiptHtml +
       '</div>' +
-      '<div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Tutup</button></div>',
-      'modal-sm'
+      '<div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Tutup</button></div>'
     );
+  }
+
+  /** Lightbox sederhana full-screen untuk foto struk — dipanggil dari klik pada preview di
+   *  modal detail transaksi. Dipisah dari openModal biasa (pakai overlay sendiri, z-index lebih
+   *  tinggi) supaya menumpuk rapi di atas modal detail transaksi yang sedang terbuka. */
+  function ebOpenReceiptLightbox_(url){
+    var existing = document.getElementById('ebReceiptLightbox');
+    if(existing) existing.remove();
+    var box = document.createElement('div');
+    box.id = 'ebReceiptLightbox';
+    box.className = 'eb-lightbox';
+    box.innerHTML =
+      '<button type="button" class="eb-lightbox-close" aria-label="Tutup">'+CLOSE_ICON+'</button>' +
+      '<img src="'+escapeHtml(url)+'" alt="Struk">';
+    box.onclick = function(e){ if(e.target === box || e.target.closest('.eb-lightbox-close')) box.remove(); };
+    document.body.appendChild(box);
   }
 
   // =============================================================================
@@ -16252,6 +16363,7 @@
   // ROLE STORE — DASHBOARD
   // =============================================================================
   var EB_STORE_DASH_CACHE_ = null;
+  var EB_STORE_DASH_YM_ = '';
   function renderStoreDashboard(){
     var content = document.getElementById('content');
     if(EB_STORE_DASH_CACHE_){
@@ -16270,11 +16382,23 @@
       .withFailureHandler(function(err){
         if(!EB_STORE_DASH_CACHE_) handleBackendError(err, document.getElementById('content'));
       })
-      .ebGetStoreDashboard(STATE.token, null);
+      .ebGetStoreDashboard(STATE.token, EB_STORE_DASH_YM_ || null);
+  }
+
+  /** Dipanggil dari dropdown filter bulan di header Dashboard Store — pola sama persis dengan
+   *  ebChangeDashboardMonth_ milik role EMPLOYEE (backend ebGetStoreDashboard sudah mendukung
+   *  parameter yearMonth, sebelumnya cuma belum ada UI-nya di frontend / selalu kirim null). */
+  function ebChangeStoreDashMonth_(ym){
+    EB_STORE_DASH_YM_ = ym;
+    EB_STORE_DASH_CACHE_ = null;
+    renderStoreDashboard();
   }
 
   function ebStoreDashboardHtml_(d){
     var storeName = (STATE.user && STATE.user.storeName) ? STATE.user.storeName : (STATE.user ? STATE.user.name : '');
+    var monthOptsHtml = ebMonthOptions_().map(function(m){
+      return '<option value="'+m.value+'"'+(m.value===d.yearMonth?' selected':'')+'>'+escapeHtml(m.label)+'</option>';
+    }).join('');
     var recentHtml = (d.recent && d.recent.length)
       ? d.recent.map(function(t){
           return '<div class="eb-recent-row" onclick="openEbStoreTrxDetail_(\''+escapeHtml(t.trxId)+'\')">' +
@@ -16291,7 +16415,10 @@
         '<div class="empty-state-sub">Transaksi yang dicatat via scan QR akan muncul di sini.</div></div>';
 
     return '<div class="eb-dash">' +
-      '<div class="eb-dash-greet">Store <strong>'+escapeHtml(storeName)+'</strong> &mdash; ringkasan transaksi periode <strong>'+escapeHtml(d.periodLabel)+'</strong>.</div>' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px;">' +
+        '<div class="eb-dash-greet" style="margin-bottom:0;">Store <strong>'+escapeHtml(storeName)+'</strong> &mdash; ringkasan transaksi periode <strong>'+escapeHtml(d.periodLabel)+'</strong>.</div>' +
+        '<div class="filter-select-wrap"><select class="filter-select" onchange="ebChangeStoreDashMonth_(this.value)">'+monthOptsHtml+'</select></div>' +
+      '</div>' +
       '<div class="kpi-grid">' +
         '<div class="kpi-card kpi-green">' +
           '<div class="kpi-icon">'+ICONS.transactions+'</div>' +
@@ -16306,7 +16433,7 @@
         '<div class="kpi-card kpi-purple">' +
           '<div class="kpi-icon">'+ICONS.agent+'</div>' +
           '<div class="kpi-value">'+(d.uniqueEmployees||0)+'</div>' +
-          '<div class="kpi-label">Karyawan Unik</div>' +
+          '<div class="kpi-label">Karyawan Belanja Bulan Ini</div>' +
         '</div>' +
         '<div class="kpi-card kpi-orange">' +
           '<div class="kpi-icon">'+ICONS.calendar+'</div>' +
@@ -16382,6 +16509,7 @@
     var summaryHtml = '<div class="eb-trx-summary-bar">Total nominal: <strong>'+formatRupiah(totalAmount)+'</strong></div>';
     var rowsHtml = rows.map(function(t){
       return '<div class="eb-trx-item" onclick="openEbStoreTrxDetail_(\''+escapeHtml(t.trxId)+'\')">' +
+        '<div class="eb-trx-icon">'+ICONS.agent+'</div>' +
         '<div class="eb-trx-item-left">' +
           '<div class="eb-trx-store">'+escapeHtml(t.employeeName||'-')+'</div>' +
           '<div class="eb-trx-meta">No. '+escapeHtml(t.trxNumber||'-')+' &middot; '+formatDateTimeDMY_(t.createdAt)+'</div>' +
@@ -16409,26 +16537,7 @@
       for(var j=0;j<EB_STORE_DASH_CACHE_.recent.length;j++){ if(EB_STORE_DASH_CACHE_.recent[j].trxId === trxId){ t = EB_STORE_DASH_CACHE_.recent[j]; break; } }
     }
     if(!t) return;
-    var receiptHtml = t.receiptUrl
-      ? '<a href="'+escapeHtml(t.receiptUrl)+'" target="_blank" class="eb-receipt-preview">' +
-          '<img src="'+escapeHtml(t.receiptUrl)+'" alt="Struk" onerror="this.parentElement.innerHTML=\'<div class=&quot;eb-receipt-fallback&quot;>Lihat Struk (PDF/File)</div>\'">' +
-        '</a>'
-      : '<div class="eb-receipt-fallback">Tidak ada foto struk.</div>';
-    openModal(
-      '<div class="modal-header"><span class="modal-title">Detail Transaksi</span>' +
-      '<button class="modal-close" onclick="closeModal()">'+CLOSE_ICON+'</button></div>' +
-      '<div class="modal-body">' +
-        '<div class="eb-detail-row"><span>Nama Karyawan</span><strong>'+escapeHtml(t.employeeName||'-')+'</strong></div>' +
-        '<div class="eb-detail-row"><span>Perusahaan</span><strong>'+escapeHtml(t.companyName||'-')+'</strong></div>' +
-        '<div class="eb-detail-row"><span>Nomor Transaksi</span><strong>'+escapeHtml(t.trxNumber||'-')+'</strong></div>' +
-        '<div class="eb-detail-row"><span>Tanggal</span><strong>'+formatDateTimeDMY_(t.createdAt)+'</strong></div>' +
-        '<div class="eb-detail-row"><span>Nominal</span><strong class="eb-detail-amount">'+formatRupiah(t.amount)+'</strong></div>' +
-        '<div class="eb-detail-label">Foto Struk</div>' +
-        receiptHtml +
-      '</div>' +
-      '<div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Tutup</button></div>',
-      'modal-sm'
-    );
+    openModal(ebTrxDetailModalHtml_(t), 'modal-sm');
   }
 
   // =============================================================================
