@@ -4571,7 +4571,8 @@
     { key: 'eb-transactions', icon: ICONS.transactions,label: 'Riwayat Transaksi',  roles: ['EMPLOYEE'] },
     { key: 'eb-profile',      icon: ICONS.users,       label: 'Profile',            roles: ['EMPLOYEE'] },
     { key: 'eb-scan',         icon: ICONS.cart,        label: 'Scan Barcode',       roles: ['STORE'] },
-    { key: 'eb-companies',    icon: ICONS.stores,      label: 'Master Company',     roles: ['ADMIN','SUPERVISOR','MANAGER'] }
+    { key: 'eb-companies',    icon: ICONS.stores,      label: 'Master Company',     roles: ['ADMIN','SUPERVISOR','MANAGER'] },
+    { key: 'eb-store-users',  icon: ICONS.agent,       label: 'Kelola Store User',  roles: ['ADMIN','SUPERVISOR','MANAGER'] }
   ].filter(function(item){
     // Live Chat dimatikan total lewat LIVECHAT_FEATURE_ENABLED_ (lihat deklarasinya di
     // paling atas file) — di-filter keluar DI SINI (sumber tunggal MENU_ITEMS) supaya
@@ -4588,7 +4589,7 @@
     { key: 'master',    label: 'Master Data',       items: ['agents','products','stores'] },
     { key: 'laporan',   label: 'Laporan & Jadwal',  items: ['reports','calendar'] },
     { key: 'sistem',    label: 'Sistem',            items: ['users','settings','dashboard-settings','audit-log'] },
-    { key: 'eb-menu',   label: 'Employee Benefit',  items: ['eb-companies','eb-qr','eb-transactions','eb-profile','eb-scan'] }
+    { key: 'eb-menu',   label: 'Employee Benefit',  items: ['eb-companies','eb-store-users','eb-qr','eb-transactions','eb-profile','eb-scan'] }
   ];
   // Which groups start expanded by default (persisted in-session via SIDEBAR_GROUP_STATE_ below).
   var SIDEBAR_GROUP_STATE_ = { transaksi: true, master: true, laporan: true, sistem: true };
@@ -4602,7 +4603,7 @@
     'dashboard-settings': 'Dashboard Settings',
     'audit-log': 'Audit Log', reports: 'Laporan', calendar: 'Kalender Pengambilan',
     'eb-qr': 'QR Code', 'eb-transactions': 'Riwayat Transaksi', 'eb-profile': 'Profile', 'eb-scan': 'Scan Barcode',
-    'eb-companies': 'Master Company'
+    'eb-companies': 'Master Company', 'eb-store-users': 'Kelola Store User'
   };
 
   // =============================================================
@@ -5959,6 +5960,7 @@
         case 'eb-profile': return renderEmployeeProfile();
         case 'eb-scan': return renderStoreScan();
         case 'eb-companies': return renderEbCompanies();
+        case 'eb-store-users': return renderEbStoreUsers();
         default:
           content.innerHTML = '<div class="empty-state">Modul "'+ (PAGE_TITLES[pageKey]||pageKey) +'" belum tersedia.</div>';
       }
@@ -16435,6 +16437,154 @@
           })
           .withFailureHandler(function(e){ setPageLoading_(false); handleBackendError(e); })
           .ebDeleteCompany(STATE.token, companyId);
+      }
+    });
+  }
+
+
+  // =============================================================================
+  // EMPLOYEE BENEFIT — KELOLA STORE USER (ADMIN / SUPERVISOR / MANAGER)
+  // Kelola akun kasir (role STORE) yang dipakai untuk scan QR karyawan & mencatat
+  // transaksi. Password dibuat otomatis & dikirim ke email store — TIDAK ada input
+  // password manual di form ini (lihat ebSaveStoreUser di EmployeeBenefit.gs).
+  // =============================================================================
+  var EB_STORE_USERS_CACHE_ = [];
+  var FILTER_STATE_EB_STORE_USERS_ = { q:'', status:'__ALL__' };
+
+  function renderEbStoreUsers(){
+    google.script.run
+      .withSuccessHandler(function(rows){
+        EB_STORE_USERS_CACHE_ = rows || [];
+        paintPage_('eb-store-users', ebStoreUsersPageHtml_());
+      })
+      .withFailureHandler(function(e){ handleBackendError(e, pageErrorEl_('eb-store-users')); })
+      .ebListStoreUsers(STATE.token);
+  }
+
+  function onFilterChangeEbStoreUsers_(key, val){
+    if(key === '__RESET__'){ FILTER_STATE_EB_STORE_USERS_ = { q:'', status:'__ALL__' }; }
+    else { FILTER_STATE_EB_STORE_USERS_[key] = val; }
+    paintPage_('eb-store-users', ebStoreUsersPageHtml_());
+  }
+
+  function ebStoreUsersPageHtml_(){
+    var rows = EB_STORE_USERS_CACHE_;
+    var fieldConfigs = [
+      {key:'status', label:'Status', options:uniqueOptions_(rows,'Status'), match:function(r,v){return r.Status===v;}}
+    ];
+    var filtered = applyListFilters_(rows, FILTER_STATE_EB_STORE_USERS_, ['UserID','StoreName','Email'], fieldConfigs);
+    var filterHtml = filterBarHtml_('onFilterChangeEbStoreUsers_', 'Cari nama store atau email...', fieldConfigs, FILTER_STATE_EB_STORE_USERS_, filtered.length, rows.length);
+    var cols = [
+      {label:'No.', render:function(r,i){ return String(i+1); }},
+      {label:'User ID', field:'UserID'},
+      {label:'Nama Store', titleCol:true, field:'StoreName'},
+      {label:'Email', field:'Email'},
+      {label:'Dibuat', render:function(r){ return formatDateDMY_(r.CreatedAt); }},
+      {label:'Status', render:function(r){ return statusBadge(r.Status); }}
+    ];
+    // Tambah/Edit/Hapus dibuka untuk ADMIN, SUPERVISOR & MANAGER — sesuai kebijakan
+    // (lihat ebSaveStoreUser/ebDeleteStoreUser di EmployeeBenefit.gs, keduanya sekarang
+    // memvalidasi terhadap EB_REVIEWER_ROLES).
+    var canEdit = ['ADMIN','SUPERVISOR','MANAGER'].indexOf(STATE.user.role) !== -1;
+    var actions = function(r){
+      var view = 'viewEbStoreUser_(\''+r.UserID+'\')';
+      var edit = canEdit ? 'editEbStoreUser_(\''+r.UserID+'\')' : null;
+      var del = canEdit ? 'deleteEbStoreUserConfirm_(\''+r.UserID+'\',\''+escapeHtml(r.StoreName||'').replace(/'/g,"\\'")+'\')' : null;
+      return rowActionButtons(view, edit, del);
+    };
+    return '<div class="card"><div class="table-toolbar"><span class="card-title">Kelola Store User</span>' +
+      (canEdit?'<button class="btn btn-primary btn-sm" onclick="editEbStoreUser_(null)">'+ICONS.plus+' Tambah Store User</button>':'') +
+      '</div>' + filterHtml +
+      renderTableOrCards_(cols, filtered, actions,
+        rows.length ? 'Tidak ada store user yang cocok' : 'Belum ada store user',
+        rows.length ? 'Coba ubah kata kunci pencarian atau filter yang dipakai.' : 'Tambahkan akun kasir pertama — kredensial login akan otomatis dikirim ke email store.',
+        ICONS.agent) + '</div>';
+  }
+
+  function findEbStoreUser_(userId){
+    for(var i=0;i<EB_STORE_USERS_CACHE_.length;i++){ if(EB_STORE_USERS_CACHE_[i].UserID === userId) return EB_STORE_USERS_CACHE_[i]; }
+    return null;
+  }
+
+  function viewEbStoreUser_(userId){
+    var s = findEbStoreUser_(userId);
+    if(!s){ showToast('Data tidak ditemukan.','error'); return; }
+    var head =
+      '<div class="agent-detail-head">' +
+        '<div class="agent-detail-avatar">'+ICONS.agent+'</div>' +
+        '<div class="agent-detail-head-meta">' +
+          '<div class="agent-detail-name">'+escapeHtml(s.StoreName||'-')+'</div>' +
+          '<div class="agent-detail-id">'+escapeHtml(s.UserID||'-')+'</div>' +
+          '<div class="agent-detail-badges">' + statusBadge(s.Status) + '</div>' +
+        '</div>' +
+      '</div>';
+    var infoGrid =
+      '<div class="agent-detail-section-title">Informasi Akun</div>' +
+      '<div class="agent-detail-grid">' +
+        detailField_('Email', escapeHtml(s.Email || '-'), true) +
+        detailField_('Dibuat', formatDateTimeDMY_(s.CreatedAt)) +
+      '</div>';
+    openModal(
+      '<div class="modal-header"><span class="modal-title">Detail Store User</span>' +
+      '<button class="modal-close" onclick="closeModal()">'+CLOSE_ICON+'</button></div>' +
+      '<div class="modal-body">'+head+infoGrid+'</div>' +
+      '<div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Tutup</button></div>'
+    );
+  }
+
+  function editEbStoreUser_(userId){
+    var s = userId ? findEbStoreUser_(userId) : {};
+    s = s || {};
+    var statusVal = s.Status || 'ACTIVE';
+    var statusField =
+      '<div class="form-group"><label>Status</label><select id="ebStoreUserStatus">' +
+        '<option value="ACTIVE"'+(statusVal==='ACTIVE'?' selected':'')+'>ACTIVE</option>' +
+        '<option value="INACTIVE"'+(statusVal==='INACTIVE'?' selected':'')+'>INACTIVE</option>' +
+      '</select></div>';
+    var passwordNote = userId
+      ? ''
+      : '<div class="form-hint">Password login akan dibuat otomatis oleh sistem & dikirim ke email store di atas — tidak perlu diisi manual.</div>';
+    var body =
+      formField_('ebStoreUserName','Nama Store', s.StoreName, 'text', 'Contoh: Store Gondomanan', true, ICONS.stores) +
+      formField_('ebStoreUserEmail','Email', s.Email, 'email', 'Contoh: store.gondomanan@agrinesia.co.id', true, ICONS.mail) +
+      passwordNote +
+      statusField;
+    openFormModal(userId ? 'Edit Store User' : 'Tambah Store User', body, function(){ saveEbStoreUserForm_(userId); });
+  }
+
+  function saveEbStoreUserForm_(userId){
+    var payload = {
+      userId: userId || undefined,
+      storeName: val_('ebStoreUserName'),
+      email: val_('ebStoreUserEmail'),
+      status: val_('ebStoreUserStatus') || 'ACTIVE'
+    };
+    if(!payload.storeName){ showToast('Nama store wajib diisi.','error'); return; }
+    if(!payload.email){ showToast('Email wajib diisi.','error'); return; }
+    google.script.run
+      .withSuccessHandler(function(res){
+        if(res.success){ closeModal(); showToast(res.message || 'Store user disimpan.','success'); renderEbStoreUsers(); }
+        else showToast(res.message || 'Gagal menyimpan.','error');
+      })
+      .withFailureHandler(function(e){ handleBackendError(e); })
+      .ebSaveStoreUser(STATE.token, payload);
+  }
+
+  function deleteEbStoreUserConfirm_(userId, storeName){
+    openConfirmModal({
+      title: 'Hapus Store User?',
+      message: 'Akun kasir "'+storeName+'" akan dihapus permanen dan tidak bisa login lagi.',
+      confirmLabel: 'Ya, Hapus', danger: true, icon: ICONS.trash,
+      onConfirm: function(){
+        setPageLoading_(true, 'Menghapus store user');
+        google.script.run
+          .withSuccessHandler(function(res){
+            setPageLoading_(false);
+            if(res.success){ showToast(res.message || 'Store user dihapus.','success'); renderEbStoreUsers(); }
+            else showToast(res.message || 'Gagal menghapus.','error');
+          })
+          .withFailureHandler(function(e){ setPageLoading_(false); handleBackendError(e); })
+          .ebDeleteStoreUser(STATE.token, userId);
       }
     });
   }
