@@ -3554,6 +3554,107 @@
     min-width:18px; height:18px; padding:0 5px; border-radius:9px; background:var(--ag-red); color:#fff;
     font-size:10.5px; font-weight:700; display:flex; align-items:center; justify-content:center; margin-left:auto;
   }
+
+  /* =============================================================
+     FIX: CSS EMPLOYEE BENEFIT MODULE (Tahap 2/3) — SEMPAT HILANG
+     -------------------------------------------------------------
+     Blok .reg-choice-* ini sebelumnya HANYA ada di Stylesheet.html
+     (dipakai versi GAS lewat include() server-side). Index.html versi
+     GitHub Pages ini sudah membawa seluruh CSS-nya sendiri secara
+     mandiri (lihat komentar di <head>), sehingga saat disalin dulu,
+     blok CSS Employee Benefit ini tidak pernah ikut ter-copy —
+     akibatnya markup #regChoiceModal/#csChoiceModal (2 tombol pilihan
+     Agent B2B / Employee Benefit) tampil TANPA styling sama sekali
+     (numpuk seperti list polos, bukan card). Ditambahkan di sini,
+     sekaligus dirapikan: card kanan-kiri lebih lega, warna pembeda
+     lebih tegas (tint latar penuh per-kartu, bukan cuma border tipis),
+     dan ukuran modal disesuaikan supaya tidak sempit di layar kecil.
+     ============================================================= */
+  #regChoiceModal .reg-card,
+  #csChoiceModal .reg-card{
+    max-width:660px;
+  }
+  .reg-choice-grid{
+    display:grid; grid-template-columns:1fr 1fr; gap:16px;
+  }
+  @media (max-width:560px){
+    .reg-choice-grid{ grid-template-columns:1fr; }
+  }
+  .reg-choice-card{
+    /* Warna aksen per-card, di-override lewat modifier class .reg-choice-card--green /
+       .reg-choice-card--blue di bawah — default fallback ke hijau brand. */
+    --accent:var(--ag-green);
+    --accent-soft:var(--ag-green-soft);
+    --accent-soft-hover:var(--ag-green-soft-hover);
+    --accent-rgb:30,122,76;
+
+    position:relative; display:flex; flex-direction:column; align-items:flex-start; gap:0;
+    width:100%; text-align:left; padding:26px 22px 22px;
+    border:1.5px solid var(--accent-soft-hover); border-radius:18px;
+    background:linear-gradient(180deg, var(--accent-soft) 0%, var(--ag-surface) 55%);
+    cursor:pointer; overflow:hidden;
+    box-shadow:0 1px 3px rgba(16,24,20,.06);
+    transition:border-color .2s ease, transform .2s ease, box-shadow .2s ease;
+  }
+  .reg-choice-card::before{
+    content:''; position:absolute; top:0; left:0; right:0; height:5px;
+    background:var(--accent); opacity:.9;
+  }
+  .reg-choice-card::after{
+    content:''; position:absolute; inset:0; border-radius:inherit; opacity:0; pointer-events:none;
+    background:radial-gradient(120% 90% at 20% 0%, rgba(var(--accent-rgb),.18) 0%, rgba(var(--accent-rgb),0) 65%);
+    transition:opacity .2s ease;
+  }
+  .reg-choice-card:hover{
+    border-color:var(--accent); transform:translateY(-4px);
+    box-shadow:0 16px 32px -12px rgba(var(--accent-rgb),.4);
+  }
+  .reg-choice-card:hover::after{ opacity:1; }
+  .reg-choice-card:active{ transform:translateY(-1px) scale(.99); }
+
+  .reg-choice-icon{
+    position:relative; flex:0 0 auto; width:56px; height:56px; border-radius:16px; margin-bottom:18px;
+    background:linear-gradient(150deg, #fff 0%, var(--accent-soft-hover) 100%);
+    color:var(--accent);
+    display:flex; align-items:center; justify-content:center; overflow:hidden;
+    box-shadow:inset 0 0 0 1px rgba(var(--accent-rgb),.16), 0 3px 8px rgba(var(--accent-rgb),.12);
+    transition:transform .2s ease, background .2s ease, color .2s ease;
+  }
+  .reg-choice-card:hover .reg-choice-icon{
+    background:var(--accent); color:#fff; transform:scale(1.08) rotate(-4deg);
+    box-shadow:0 10px 20px -4px rgba(var(--accent-rgb),.55);
+  }
+  .reg-choice-icon svg{ width:26px !important; height:26px !important; flex-shrink:0; max-width:26px; max-height:26px; position:relative; z-index:1; }
+
+  .reg-choice-card > span:nth-child(2){ position:relative; display:block; width:100%; }
+  .reg-choice-title{
+    display:flex; align-items:center; gap:8px; font-size:16.5px; font-weight:700;
+    color:var(--ag-gray-900,#1F2937); margin-bottom:7px; letter-spacing:-.01em;
+  }
+  .reg-choice-desc{ display:block; font-size:13px; color:var(--ag-gray-600); line-height:1.6; padding-right:4px; }
+
+  .reg-choice-arrow{
+    position:relative; align-self:flex-end; margin-top:18px; flex:0 0 auto; width:34px; height:34px; border-radius:999px;
+    background:#fff; color:var(--accent);
+    display:flex; align-items:center; justify-content:center; overflow:hidden;
+    box-shadow:inset 0 0 0 1.5px rgba(var(--accent-rgb),.25);
+    transition:background .2s ease, color .2s ease, transform .2s ease, box-shadow .2s ease;
+  }
+  .reg-choice-card:hover .reg-choice-arrow{
+    background:var(--accent); color:#fff; transform:translateX(4px);
+    box-shadow:inset 0 0 0 1.5px var(--accent);
+  }
+  .reg-choice-arrow svg{ width:17px !important; height:17px !important; flex-shrink:0; max-width:17px; max-height:17px; }
+
+  .reg-choice-card--green{ --accent:var(--ag-green); --accent-soft:var(--ag-green-soft); --accent-soft-hover:var(--ag-green-soft-hover); --accent-rgb:30,122,76; }
+  .reg-choice-card--blue{ --accent:var(--ag-blue); --accent-soft:var(--ag-blue-soft); --accent-soft-hover:var(--ag-blue-soft); --accent-rgb:47,128,237; }
+
+  html[data-theme="dark"] .reg-choice-card{
+    background:linear-gradient(180deg, rgba(var(--accent-rgb),.14) 0%, var(--ag-gray-50) 60%);
+    border-color:rgba(var(--accent-rgb),.35);
+  }
+  html[data-theme="dark"] .reg-choice-icon{ background:linear-gradient(150deg, var(--ag-gray-50) 0%, rgba(var(--accent-rgb),.25) 100%); }
+  html[data-theme="dark"] .reg-choice-arrow{ background:var(--ag-gray-50); }
 </style>
 </head>
 <body>
