@@ -3692,6 +3692,14 @@
   .eb-trx-chevron{transform:rotate(-90deg);color:var(--ag-gray-400);display:flex;}
   .eb-trx-chevron svg{width:16px;height:16px;}
 
+  /* Ringkasan total nominal di atas daftar riwayat transaksi Store (client-side sum
+     dari data yang sudah kefilter bulan berjalan, tidak perlu request server terpisah). */
+  .eb-trx-summary-bar{
+    background:var(--ag-green-soft);color:var(--ag-dark-green,var(--ag-green));font-size:13px;font-weight:700;
+    padding:10px 14px;border-radius:10px;margin-bottom:12px;
+  }
+  .eb-trx-summary-bar strong{font-weight:800;}
+
   .eb-detail-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--ag-gray-100);font-size:13px;}
   .eb-detail-row:last-of-type{border-bottom:none;}
   .eb-detail-row span{color:var(--ag-gray-400);}
@@ -4639,6 +4647,7 @@
     { key: 'eb-transactions', icon: ICONS.transactions,label: 'Riwayat Transaksi',  roles: ['EMPLOYEE'] },
     { key: 'eb-profile',      icon: ICONS.users,       label: 'Profile',            roles: ['EMPLOYEE'] },
     { key: 'eb-scan',         icon: ICONS.cart,        label: 'Scan Barcode',       roles: ['STORE'] },
+    { key: 'eb-store-transactions', icon: ICONS.transactions, label: 'Riwayat Transaksi', roles: ['STORE'] },
     { key: 'eb-companies',    icon: ICONS.stores,      label: 'Master Company',     roles: ['ADMIN','SUPERVISOR','MANAGER'] },
     { key: 'eb-employees',    icon: ICONS.users,       label: 'Kelola Employee',    roles: ['ADMIN','SUPERVISOR','MANAGER'] },
     { key: 'eb-store-users',  icon: ICONS.agent,       label: 'Kelola Store User',  roles: ['ADMIN','SUPERVISOR','MANAGER'] }
@@ -4672,6 +4681,7 @@
     'dashboard-settings': 'Dashboard Settings',
     'audit-log': 'Audit Log', reports: 'Laporan', calendar: 'Kalender Pengambilan',
     'eb-qr': 'QR Code', 'eb-transactions': 'Riwayat Transaksi', 'eb-profile': 'Profile', 'eb-scan': 'Scan Barcode',
+    'eb-store-transactions': 'Riwayat Transaksi',
     'eb-companies': 'Master Company', 'eb-employees': 'Kelola Employee', 'eb-store-users': 'Kelola Store User'
   };
 
@@ -6047,6 +6057,7 @@
         case 'eb-transactions': return renderEmployeeTransactions();
         case 'eb-profile': return renderEmployeeProfile();
         case 'eb-scan': return renderStoreScan();
+        case 'eb-store-transactions': return renderStoreTransactions();
         case 'eb-companies': return renderEbCompanies();
         case 'eb-employees': return renderEbEmployees();
         case 'eb-store-users': return renderEbStoreUsers();
@@ -16266,7 +16277,7 @@
     var storeName = (STATE.user && STATE.user.storeName) ? STATE.user.storeName : (STATE.user ? STATE.user.name : '');
     var recentHtml = (d.recent && d.recent.length)
       ? d.recent.map(function(t){
-          return '<div class="eb-recent-row">' +
+          return '<div class="eb-recent-row" onclick="openEbStoreTrxDetail_(\''+escapeHtml(t.trxId)+'\')">' +
             '<div class="eb-recent-icon">'+ICONS.agent+'</div>' +
             '<div class="eb-recent-info">' +
               '<div class="eb-recent-store">'+escapeHtml(t.employeeName||'-')+'</div>' +
@@ -16308,10 +16319,116 @@
         '<div class="eb-chart-wrap"><canvas id="ebStoreTrendChart" height="180"></canvas></div>' +
       '</div>' +
       '<div class="card">' +
-        '<div class="section-title">Transaksi Terbaru</div>' +
-        '<div class="eb-recent-list">'+recentHtml+'</div>' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;">' +
+          '<div class="section-title" style="margin-bottom:0;">Transaksi Terbaru</div>' +
+          '<a href="javascript:void(0)" onclick="showPage(\'eb-store-transactions\')" style="font-size:12px;font-weight:700;color:var(--ag-green);text-decoration:none;">Lihat Semua</a>' +
+        '</div>' +
+        '<div class="eb-recent-list" style="margin-top:10px;">'+recentHtml+'</div>' +
       '</div>' +
     '</div>';
+  }
+
+  // =============================================================================
+  // ROLE STORE — RIWAYAT TRANSAKSI (semua transaksi yg pernah dicatat store ini,
+  // bukan cuma 10 terbaru spt di dashboard — mirror renderEmployeeTransactions()
+  // tapi sumber datanya ebGetStoreTransactions (sudah difilter StoreUserID di
+  // backend) & tiap baris nampilin nama karyawan, karena buat kasir yang penting
+  // justru "siapa yang belanja", bukan cuma nominalnya.
+  // =============================================================================
+  var EB_STORE_TRX_CACHE_ = null;
+  var EB_STORE_TRX_YM_ = '';
+  function renderStoreTransactions(){
+    var content = document.getElementById('content');
+    if(EB_STORE_TRX_CACHE_){
+      content.innerHTML = ebStoreTrxHtml_(EB_STORE_TRX_CACHE_);
+    } else {
+      content.innerHTML = '<div class="spinner"></div>';
+    }
+    google.script.run
+      .withSuccessHandler(function(rows){
+        if(STATE.currentPage !== 'eb-store-transactions') return;
+        EB_STORE_TRX_CACHE_ = rows || [];
+        content.innerHTML = ebStoreTrxHtml_(EB_STORE_TRX_CACHE_);
+      })
+      .withFailureHandler(function(err){
+        if(!EB_STORE_TRX_CACHE_) handleBackendError(err, document.getElementById('content'));
+      })
+      .ebGetStoreTransactions(STATE.token, EB_STORE_TRX_YM_ || null);
+  }
+
+  function ebChangeStoreTrxMonth_(ym){
+    EB_STORE_TRX_YM_ = ym;
+    EB_STORE_TRX_CACHE_ = null;
+    renderStoreTransactions();
+  }
+
+  function ebStoreTrxHtml_(rows){
+    var monthOptsHtml = '<option value=""'+(EB_STORE_TRX_YM_===''?' selected':'')+'>Semua Bulan</option>' +
+      ebMonthOptions_().map(function(m){
+        return '<option value="'+m.value+'"'+(m.value===EB_STORE_TRX_YM_?' selected':'')+'>'+escapeHtml(m.label)+'</option>';
+      }).join('');
+    var filterHtml =
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px;">' +
+        '<div class="section-title" style="margin-bottom:0;">Riwayat Transaksi ('+rows.length+')</div>' +
+        '<div class="filter-select-wrap"><select class="filter-select" onchange="ebChangeStoreTrxMonth_(this.value)">'+monthOptsHtml+'</select></div>' +
+      '</div>';
+    if(!rows.length){
+      return '<div class="card">' + filterHtml +
+        '<div class="empty-state"><div class="empty-state-icon">'+ICONS.cart+'</div>' +
+        '<div class="empty-state-title">Belum ada transaksi</div>' +
+        '<div class="empty-state-sub">'+(EB_STORE_TRX_YM_ ? 'Tidak ada transaksi pada bulan yang dipilih.' : 'Transaksi yang dicatat via scan QR akan muncul di sini.')+'</div></div></div>';
+    }
+    var totalAmount = ebSumClientAmount_(rows);
+    var summaryHtml = '<div class="eb-trx-summary-bar">Total nominal: <strong>'+formatRupiah(totalAmount)+'</strong></div>';
+    var rowsHtml = rows.map(function(t){
+      return '<div class="eb-trx-item" onclick="openEbStoreTrxDetail_(\''+escapeHtml(t.trxId)+'\')">' +
+        '<div class="eb-trx-item-left">' +
+          '<div class="eb-trx-store">'+escapeHtml(t.employeeName||'-')+'</div>' +
+          '<div class="eb-trx-meta">No. '+escapeHtml(t.trxNumber||'-')+' &middot; '+formatDateTimeDMY_(t.createdAt)+'</div>' +
+        '</div>' +
+        '<div class="eb-trx-item-right">' +
+          '<div class="eb-trx-amount">'+formatRupiah(t.amount)+'</div>' +
+          '<div class="eb-trx-chevron">'+ICONS.chevronDown+'</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+    return '<div class="card">' + filterHtml + summaryHtml +
+      '<div class="eb-trx-list">'+rowsHtml+'</div></div>';
+  }
+
+  /** Dipakai cuma di halaman ini utk total nominal filter bulan berjalan — tidak
+   *  perlu bolak-balik ke server karena datanya sudah ada di cache client. */
+  function ebSumClientAmount_(rows){
+    return rows.reduce(function(s,t){ return s + (Number(t.amount)||0); }, 0);
+  }
+
+  function openEbStoreTrxDetail_(trxId){
+    var t = null;
+    for(var i=0;i<EB_STORE_TRX_CACHE_.length;i++){ if(EB_STORE_TRX_CACHE_[i].trxId === trxId){ t = EB_STORE_TRX_CACHE_[i]; break; } }
+    if(!t && EB_STORE_DASH_CACHE_ && EB_STORE_DASH_CACHE_.recent){
+      for(var j=0;j<EB_STORE_DASH_CACHE_.recent.length;j++){ if(EB_STORE_DASH_CACHE_.recent[j].trxId === trxId){ t = EB_STORE_DASH_CACHE_.recent[j]; break; } }
+    }
+    if(!t) return;
+    var receiptHtml = t.receiptUrl
+      ? '<a href="'+escapeHtml(t.receiptUrl)+'" target="_blank" class="eb-receipt-preview">' +
+          '<img src="'+escapeHtml(t.receiptUrl)+'" alt="Struk" onerror="this.parentElement.innerHTML=\'<div class=&quot;eb-receipt-fallback&quot;>Lihat Struk (PDF/File)</div>\'">' +
+        '</a>'
+      : '<div class="eb-receipt-fallback">Tidak ada foto struk.</div>';
+    openModal(
+      '<div class="modal-header"><span class="modal-title">Detail Transaksi</span>' +
+      '<button class="modal-close" onclick="closeModal()">'+CLOSE_ICON+'</button></div>' +
+      '<div class="modal-body">' +
+        '<div class="eb-detail-row"><span>Nama Karyawan</span><strong>'+escapeHtml(t.employeeName||'-')+'</strong></div>' +
+        '<div class="eb-detail-row"><span>Perusahaan</span><strong>'+escapeHtml(t.companyName||'-')+'</strong></div>' +
+        '<div class="eb-detail-row"><span>Nomor Transaksi</span><strong>'+escapeHtml(t.trxNumber||'-')+'</strong></div>' +
+        '<div class="eb-detail-row"><span>Tanggal</span><strong>'+formatDateTimeDMY_(t.createdAt)+'</strong></div>' +
+        '<div class="eb-detail-row"><span>Nominal</span><strong class="eb-detail-amount">'+formatRupiah(t.amount)+'</strong></div>' +
+        '<div class="eb-detail-label">Foto Struk</div>' +
+        receiptHtml +
+      '</div>' +
+      '<div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Tutup</button></div>',
+      'modal-sm'
+    );
   }
 
   // =============================================================================
