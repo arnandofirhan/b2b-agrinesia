@@ -15950,20 +15950,49 @@
   // =============================================================================
   // ROLE EMPLOYEE — PROFILE
   // =============================================================================
+  var EB_PROFILE_CACHE_ = null;
   function renderEmployeeProfile(){
     var content = document.getElementById('content');
-    content.innerHTML = '<div class="spinner"></div>';
+    if(EB_PROFILE_CACHE_){
+      content.innerHTML = ebProfileHtml_(EB_PROFILE_CACHE_);
+    } else {
+      content.innerHTML = '<div class="spinner"></div>';
+    }
     google.script.run
       .withSuccessHandler(function(p){
         if(STATE.currentPage !== 'eb-profile') return;
+        EB_PROFILE_CACHE_ = p;
         content.innerHTML = ebProfileHtml_(p);
       })
-      .withFailureHandler(function(err){ handleBackendError(err, document.getElementById('content')); })
+      .withFailureHandler(function(err){
+        // Kalau sudah ada cache yang tampil, jangan timpa layar dengan pesan error hanya
+        // karena refresh di background gagal (mis. koneksi sempat putus) — biarkan data lama
+        // tetap terlihat, sama seperti pola renderStoreDashboard.
+        if(!EB_PROFILE_CACHE_) handleBackendError(err, document.getElementById('content'));
+      })
       .ebGetMyProfile(STATE.token);
   }
 
   function ebProfileHtml_(p){
     var statusBadge = ebStatusBadge_(p.registrationStatus);
+    // FIX BUG NYATA: sebelumnya "Foto KTP"/"Foto ID Card" ditampilkan sebagai kartu <a> polos
+    // berisi ikon generik (ICONS.reports, ikon bar-chart) + link — BUKAN foto sungguhan. Itu
+    // sebabnya terlihat seperti "kolom kosong untuk upload ulang", padahal filenya sendiri
+    // sudah tersimpan benar di backend (ebGetMyProfile sudah mengembalikan fileId & url-nya).
+    // FIX: pakai docPreviewCard_ yang sama seperti di Profil Agent — ini me-render THUMBNAIL
+    // foto sungguhan lewat lh3.googleusercontent.com/d/{fileId}, dengan fallback ikon hanya
+    // kalau gambarnya benar-benar gagal dimuat (onerror), dan bisa diklik utk lihat ukuran
+    // penuh (openDocLightbox). editableAgentId di-null-kan (mode lihat saja) karena belum ada
+    // endpoint ganti-dokumen utk Employee yang sedang login (yang ada baru jalur publik lewat
+    // ebPublicReplaceDocument, dipakai di halaman "Cek Status Pendaftaran" saat status ditolak).
+    var docs = [
+      { label:'Foto KTP', fileId:(p.docs&&p.docs.KTP&&p.docs.KTP.fileId)||'', url:(p.docs&&p.docs.KTP&&p.docs.KTP.url)||'' },
+      { label:'Foto ID Card', fileId:(p.docs&&p.docs.IDCARD&&p.docs.IDCARD.fileId)||'', url:(p.docs&&p.docs.IDCARD&&p.docs.IDCARD.url)||'' }
+    ].filter(function(d){ return !!d.url; });
+    var docsHtml = !docs.length
+      ? '<div class="doc-preview-empty">Belum ada dokumen diunggah</div>'
+      : '<div class="doc-preview-grid">' + docs.map(function(d){ return docPreviewCard_(d, null); }).join('') + '</div>';
+
     return '<div class="eb-profile">' +
       '<div class="card eb-profile-card">' +
         '<div class="eb-profile-avatar">'+escapeHtml((p.fullName||'?').charAt(0).toUpperCase())+'</div>' +
@@ -15980,10 +16009,7 @@
       '</div>' +
       '<div class="card">' +
         '<div class="section-title">Dokumen</div>' +
-        '<div class="eb-doc-grid">' +
-          '<a class="eb-doc-tile" href="'+escapeHtml((p.docs&&p.docs.KTP&&p.docs.KTP.url)||'#')+'" target="_blank">'+ICONS.reports+'<span>Foto KTP</span></a>' +
-          '<a class="eb-doc-tile" href="'+escapeHtml((p.docs&&p.docs.IDCARD&&p.docs.IDCARD.url)||'#')+'" target="_blank">'+ICONS.reports+'<span>Foto ID Card</span></a>' +
-        '</div>' +
+        docsHtml +
       '</div>' +
       '<div class="card">' +
         '<div class="section-title">Keamanan</div>' +
