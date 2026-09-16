@@ -5574,7 +5574,31 @@
     CURRENT_DETAIL_MODAL_KEY_ = null;
     ORDER_DOC_ACTIVE_ORDERID_ = null;
     MODAL_GENERATION_++; // lihat komentar di deklarasi MODAL_GENERATION_ di bawah
+    // FIX BUG NYATA ("troli sudah kosong/FAB hilang, tapi angka qty di kartu produk
+    // Dashboard masih nyangkut"): syncNewPOCartToDashCart_() (dipanggil tiap tambah/kurang/
+    // hapus item DI DALAM modal "Buat PO") sengaja TIDAK ikut me-render ulang grid produk
+    // Dashboard di baliknya selagi modal masih terbuka (lihat komentarnya) — supaya modal
+    // yang sedang terbuka di atas Dashboard tidak ikut kena reset scroll/banner. Tapi begitu
+    // modal itu DITUTUP, grid Dashboard di belakangnya tetap menampilkan angka qty LAMA
+    // (dari state SEBELUM disinkronkan), karena tidak ada jalur render lain yang lewat sini
+    // — Agent tidak pernah benar-benar "pindah halaman" (showPage('dashboard')) saat modal
+    // Buat PO dibuka dari Dashboard, jadi grid yang sudah ter-render di DOM tidak pernah
+    // disegarkan ulang.
+    // FIX: NEWPO_DASH_GRID_DIRTY_ ditandai true oleh syncNewPOCartToDashCart_() setiap kali
+    // troli disinkronkan, lalu DI SINI (satu-satunya titik penutupan modal, dipakai semua
+    // modal) kita cek flag itu — kalau menyala DAN Agent memang sedang melihat Dashboard,
+    // render ulang grid produknya (murah: paintAgentDashboard_ sudah dipakai di tempat lain
+    // untuk kasus serupa) supaya angka qty ikut sinkron dengan troli yang sebenarnya.
+    // Modal lain (Detail PO, dst) tidak pernah menyalakan flag ini, jadi aman/idempotent.
+    if(NEWPO_DASH_GRID_DIRTY_){
+      NEWPO_DASH_GRID_DIRTY_ = false;
+      if(STATE.currentPage === 'dashboard' && AGENT_DASH_CFG_CACHE_){
+        paintAgentDashboard_(AGENT_DASH_CFG_CACHE_);
+      }
+    }
   }
+  // Lihat penjelasan lengkap di closeModal() dan syncNewPOCartToDashCart_().
+  var NEWPO_DASH_GRID_DIRTY_ = false;
   // BUG: klik banner (atau tombol lain) yang membuka popup lewat data ASYNC (mis.
   // newPOForm() — fetch listProducts/listPromos ke server dulu baru isi modal) bisa
   // "muncul lagi sendiri" setelah user CLOSE popup-nya duluan SEBELUM request selesai.
@@ -8797,6 +8821,9 @@
     if(NEWPO_RESUBMIT_ID_ || NEWPO_EDIT_APPROVED_ID_) return;
     AGENT_DASH_CART_ = Object.assign({}, NEWPO_CART_);
     persistAgentDashCart_();
+    // Tandai grid produk Dashboard sebagai "usang" — lihat FIX lengkap di closeModal(),
+    // yang akan menyegarkan grid ini begitu modal "Buat PO" ini ditutup.
+    NEWPO_DASH_GRID_DIRTY_ = true;
     // BUG LANJUTAN: sinkronisasi di atas sudah benar (data troli sudah ke-update), TAPI
     // angka di badge FAB "Troli" milik Dashboard (elemen #agentCartFab, dirender oleh
     // paintAgentDashboard_) sengaja TIDAK ikut re-render di sini — modal "Buat PO" sedang
@@ -12394,6 +12421,23 @@
   // device ini dengan versi server (skenario umum: item ditambah dari device LAIN).
   function pullCartFromServer_(){
     if(!STATE.token || !STATE.user || STATE.user.role !== 'AGENT') return;
+    // FIX BUG NYATA ("item yang baru dihapus dari troli muncul lagi setelah back / tab
+    // kembali visible"): sebelumnya pull ini bisa jalan DULUAN sebelum push yang sedang
+    // di-debounce 1 detik (lihat scheduleCartPush_) sempat terkirim — akibatnya versi LAMA
+    // dari server (yang masih berisi item yang baru saja dihapus user) menimpa balik
+    // AGENT_DASH_CART_ yang sudah benar di device ini (prinsip "server-wins" di bawah jadi
+    // salah sasaran, karena device ini sebenarnya justru yang lebih baru).
+    // FIX: kalau masih ada push tertunda (CART_SAVE_TIMER_ belum sempat jalan), JANGAN pull
+    // dulu — percepat push itu (jalankan sekarang juga, bukan nunggu genap 1 detik) supaya
+    // server cepat menyusul, lalu skip pull untuk giliran ini saja. Poll (setiap 20 detik)
+    // atau visibilitychange berikutnya otomatis akan coba pull lagi setelah push ini beres,
+    // jadi tidak ada perubahan device lain yang hilang — cuma ditunda satu putaran.
+    if(CART_SAVE_TIMER_){
+      clearTimeout(CART_SAVE_TIMER_);
+      CART_SAVE_TIMER_ = null;
+      pushCartToServer_();
+      return;
+    }
     google.script.run
       .withSuccessHandler(function(res){
         if(!res) return;
