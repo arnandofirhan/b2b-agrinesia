@@ -3826,9 +3826,17 @@
 
   .eb-scan-start-btn{
     width:100%;margin-top:14px;display:flex;align-items:center;justify-content:center;gap:8px;
+    min-height:50px;position:relative;z-index:1;touch-action:manipulation;-webkit-tap-highlight-color:transparent;
   }
-  .eb-scan-start-btn svg{width:18px;height:18px;}
+  .eb-scan-start-btn svg{width:18px;height:18px;pointer-events:none;}
+  .eb-scan-start-btn span{pointer-events:none;}
   .eb-scan-start-btn:disabled{opacity:.7;cursor:default;}
+  /* FIX: tombol sebelumnya cuma sebagian area yang responsif di HP — .btn dasar itu
+     inline-flex yang ukurannya ngikutin konten, sementara width:100% di sini kadang
+     "kalah" oleh reflow .eb-scan-card di beberapa browser mobile, jadi hit-area visual
+     vs hit-area klik tidak sama persis. min-height + z-index + touch-action:manipulation
+     memastikan seluruh permukaan tombol selalu solid & responsif ditap, bukan cuma
+     sebagian kecil di tengah/tepi. */
 
   .eb-trx-emp-banner{
     display:flex;align-items:center;gap:12px;padding:14px;border-radius:14px;background:var(--ag-green-soft);
@@ -16525,8 +16533,12 @@
         '<div class="form-group"><label>Nominal Belanja *</label>' +
           '<input type="number" id="ebTrxAmount" placeholder="Contoh: 150000"></div>' +
         '<div class="form-group"><label>Foto Struk *</label>' +
-          '<input type="file" id="ebTrxReceiptFile" accept="image/*,.pdf" onchange="handleEbReceiptChange_()">' +
-          '<div id="ebReceiptPreview" class="eb-receipt-upload-preview"></div>' +
+          '<div class="doc-tile doc-tile-wide" id="ebReceiptTile">' +
+            '<div class="doc-tile-icon">'+ICON_UPLOAD_DOC+'</div>' +
+            '<div class="doc-tile-label">Upload Foto Struk</div>' +
+            '<div class="doc-tile-hint">Ambil foto langsung atau pilih dari galeri &middot; JPG, PNG, PDF</div>' +
+            '<input type="file" id="ebTrxReceiptFile" accept="image/*,.pdf" onchange="handleEbReceiptChange_()">' +
+          '</div>' +
         '</div>' +
       '</div>' +
       '<div class="modal-footer">' +
@@ -16548,13 +16560,20 @@
     if(!file) return;
     fileToBase64_(file, function(fileObj){
       EB_TRX_RECEIPT_FILE_ = fileObj;
-      var preview = document.getElementById('ebReceiptPreview');
-      if(!preview) return;
-      if(file.type.indexOf('image/') === 0){
-        preview.innerHTML = '<img src="'+fileObj.data+'" alt="Preview Struk">';
-      } else {
-        preview.innerHTML = '<div class="eb-receipt-fallback">'+escapeHtml(file.name)+'</div>';
-      }
+      var tile = document.getElementById('ebReceiptTile');
+      if(!tile) return;
+      var isImage = file.type && file.type.indexOf('image/') === 0;
+      var previewHtml = isImage
+        ? '<img class="doc-tile-preview" src="'+fileObj.data+'">'
+        : '<div class="doc-tile-pdf-badge">'+ICON_PDF+'PDF</div>';
+      tile.classList.add('has-file');
+      tile.innerHTML =
+        '<div class="doc-tile-check">'+ICON_CHECK_SM+'</div>' +
+        previewHtml +
+        '<div class="doc-tile-label doc-tile-label-filled">Foto Struk</div>' +
+        '<div class="doc-tile-filename">'+escapeHtml(file.name)+'</div>' +
+        '<input type="file" id="ebTrxReceiptFile" accept="image/*,.pdf" onchange="handleEbReceiptChange_()">';
+      tile.onclick = function(){ document.getElementById('ebTrxReceiptFile').click(); };
     });
   }
 
@@ -16892,8 +16911,11 @@
     openViewModal('Detail Karyawan', html);
   }
 
-  /** Mirror editAgent()/saveAgentForm(): ubah Nama/Email/Telepon lewat ebUpdateEmployee
-   *  di backend. No. ID Card & Perusahaan sengaja tidak diedit di sini (identitas inti). */
+  /** Mirror editAgent()/saveAgentForm(): ubah Nama/Email/Telepon/No. ID Card/Perusahaan
+   *  lewat ebUpdateEmployee di backend. No. ID Card & Perusahaan SEKARANG bisa diedit —
+   *  backend sudah divalidasi (cek duplikat No. ID Card exclude diri sendiri, Perusahaan
+   *  wajib dipilih dari master yang valid via dropdown, bukan diketik bebas). */
+  var EB_EDIT_COMPANIES_CACHE_ = null;
   function editEbEmployee_(employeeId){
     var e = findEbEmployee_(employeeId);
     if(!e){ showToast('Data tidak ditemukan.','error'); return; }
@@ -16902,18 +16924,55 @@
       formField_('ebEmpEmail','Email', e.Email, 'email', '', false, ICONS.mail) +
       '<p style="font-size:11.5px;color:var(--ag-gray-600);margin:-10px 0 16px;">Mengubah email juga akan memperbarui email login karyawan (jika sudah punya akun).</p>' +
       formField_('ebEmpPhone','No. Telepon', e.Phone, 'text', '', false, ICONS.phone) +
-      '<div class="form-group"><label>No. ID Card</label><div class="text-field-wrap" style="background:var(--ag-gray-50);">'+ICONS.fileDoc+'<input type="text" value="'+escapeHtml(e.IDCardNumber||'')+'" disabled style="background:transparent;color:var(--ag-gray-400);"></div><p style="font-size:11.5px;color:var(--ag-gray-600);margin:6px 0 0;">No. ID Card tidak bisa diubah dari sini.</p></div>' +
-      '<div class="form-group"><label>Perusahaan</label><div class="text-field-wrap" style="background:var(--ag-gray-50);">'+ICONS.stores+'<input type="text" value="'+escapeHtml(e.CompanyName||'')+'" disabled style="background:transparent;color:var(--ag-gray-400);"></div></div>';
+      formField_('ebEmpIDCard','No. ID Card', e.IDCardNumber, 'text', '', false, ICONS.fileDoc) +
+      '<p style="font-size:11.5px;color:var(--ag-gray-600);margin:-10px 0 16px;">Pastikan No. ID Card baru belum dipakai karyawan lain.</p>' +
+      '<div class="form-group"><label>Perusahaan</label><div class="input-with-icon">'+
+        ICONS.stores.replace('<svg ','<svg class="field-icon" ') +
+        '<select id="ebEmpCompanyId"><option value="'+escapeHtml(e.CompanyID||'')+'">'+escapeHtml(e.CompanyName||'Memuat...')+'</option></select>' +
+      '</div></div>';
     openFormModal('Edit Karyawan', body, function(){ saveEbEmployeeForm_(employeeId); });
+    ebLoadEditCompanyOptions_(e.CompanyID);
+  }
+
+  /** Isi dropdown Perusahaan di modal Edit Karyawan dengan daftar perusahaan (semua
+   *  status, bukan cuma aktif — supaya perusahaan lama karyawan yg sudah dinonaktifkan
+   *  tetap kelihatan terpilih & tidak "hilang" dari pilihan kalau Admin tidak jadi ganti).
+   *  Di-cache di tab ini spt ebLoadCompanyOptions_ di form registrasi. */
+  function ebLoadEditCompanyOptions_(currentCompanyId){
+    var select = document.getElementById('ebEmpCompanyId');
+    if(!select) return;
+    if(EB_EDIT_COMPANIES_CACHE_){
+      ebRenderEditCompanyOptions_(EB_EDIT_COMPANIES_CACHE_, currentCompanyId);
+      return;
+    }
+    google.script.run.withSuccessHandler(function(list){
+      EB_EDIT_COMPANIES_CACHE_ = list || [];
+      ebRenderEditCompanyOptions_(EB_EDIT_COMPANIES_CACHE_, currentCompanyId);
+    }).withFailureHandler(function(){
+      showToast('Gagal memuat daftar perusahaan.','error');
+    }).ebListCompanies(STATE.token);
+  }
+
+  function ebRenderEditCompanyOptions_(list, currentCompanyId){
+    var select = document.getElementById('ebEmpCompanyId');
+    if(!select) return;
+    select.innerHTML = list.map(function(c){
+      var selected = c.CompanyID === currentCompanyId ? ' selected' : '';
+      return '<option value="'+escapeHtml(c.CompanyID)+'"'+selected+'>'+escapeHtml(c.CompanyName)+'</option>';
+    }).join('');
   }
 
   function saveEbEmployeeForm_(employeeId){
     var fields = {
       FullName: val_('ebEmpFullName'),
       Email: val_('ebEmpEmail'),
-      Phone: val_('ebEmpPhone')
+      Phone: val_('ebEmpPhone'),
+      IDCardNumber: val_('ebEmpIDCard'),
+      CompanyID: val_('ebEmpCompanyId')
     };
     if(!fields.FullName){ showToast('Nama lengkap wajib diisi.','error'); return; }
+    if(!fields.IDCardNumber){ showToast('No. ID Card wajib diisi.','error'); return; }
+    if(!fields.CompanyID){ showToast('Perusahaan wajib dipilih.','error'); return; }
     google.script.run.withSuccessHandler(function(res){
       if(res.success){ closeModal(); showToast(res.message || 'Data karyawan diperbarui.','success'); renderEbEmployees(); }
       else showToast(res.message || 'Gagal menyimpan.','error');
