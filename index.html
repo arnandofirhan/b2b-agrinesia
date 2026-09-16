@@ -4572,6 +4572,7 @@
     { key: 'eb-profile',      icon: ICONS.users,       label: 'Profile',            roles: ['EMPLOYEE'] },
     { key: 'eb-scan',         icon: ICONS.cart,        label: 'Scan Barcode',       roles: ['STORE'] },
     { key: 'eb-companies',    icon: ICONS.stores,      label: 'Master Company',     roles: ['ADMIN','SUPERVISOR','MANAGER'] },
+    { key: 'eb-employees',    icon: ICONS.users,       label: 'Kelola Employee',    roles: ['ADMIN','SUPERVISOR','MANAGER'] },
     { key: 'eb-store-users',  icon: ICONS.agent,       label: 'Kelola Store User',  roles: ['ADMIN','SUPERVISOR','MANAGER'] }
   ].filter(function(item){
     // Live Chat dimatikan total lewat LIVECHAT_FEATURE_ENABLED_ (lihat deklarasinya di
@@ -4589,7 +4590,7 @@
     { key: 'master',    label: 'Master Data',       items: ['agents','products','stores'] },
     { key: 'laporan',   label: 'Laporan & Jadwal',  items: ['reports','calendar'] },
     { key: 'sistem',    label: 'Sistem',            items: ['users','settings','dashboard-settings','audit-log'] },
-    { key: 'eb-menu',   label: 'Employee Benefit',  items: ['eb-companies','eb-store-users','eb-qr','eb-transactions','eb-profile','eb-scan'] }
+    { key: 'eb-menu',   label: 'Employee Benefit',  items: ['eb-companies','eb-employees','eb-store-users','eb-qr','eb-transactions','eb-profile','eb-scan'] }
   ];
   // Which groups start expanded by default (persisted in-session via SIDEBAR_GROUP_STATE_ below).
   var SIDEBAR_GROUP_STATE_ = { transaksi: true, master: true, laporan: true, sistem: true };
@@ -4603,7 +4604,7 @@
     'dashboard-settings': 'Dashboard Settings',
     'audit-log': 'Audit Log', reports: 'Laporan', calendar: 'Kalender Pengambilan',
     'eb-qr': 'QR Code', 'eb-transactions': 'Riwayat Transaksi', 'eb-profile': 'Profile', 'eb-scan': 'Scan Barcode',
-    'eb-companies': 'Master Company', 'eb-store-users': 'Kelola Store User'
+    'eb-companies': 'Master Company', 'eb-employees': 'Kelola Employee', 'eb-store-users': 'Kelola Store User'
   };
 
   // =============================================================
@@ -5960,6 +5961,7 @@
         case 'eb-profile': return renderEmployeeProfile();
         case 'eb-scan': return renderStoreScan();
         case 'eb-companies': return renderEbCompanies();
+        case 'eb-employees': return renderEbEmployees();
         case 'eb-store-users': return renderEbStoreUsers();
         default:
           content.innerHTML = '<div class="empty-state">Modul "'+ (PAGE_TITLES[pageKey]||pageKey) +'" belum tersedia.</div>';
@@ -16443,10 +16445,212 @@
 
 
   // =============================================================================
+  // EMPLOYEE BENEFIT — KELOLA EMPLOYEE (ADMIN / SUPERVISOR / MANAGER)
+  // Review pendaftaran karyawan (SUBMITTED/UNDER_REVIEW) -> Approve/Reject, mirror
+  // dari alur reviewAgentPrompt/doReviewAgent_ di atas. Backend (ebListEmployees,
+  // ebReviewEmployee, ebResendEmployeeCredentials, ebSetEmployeeStatus) sudah ada
+  // di EmployeeBenefit.gs — modul ini baru menyambungkannya ke UI Admin.
+  // =============================================================================
+  var EB_EMPLOYEES_CACHE_ = [];
+  var FILTER_STATE_EB_EMPLOYEES_ = { q:'', registrationStatus:'__ALL__', employeeStatus:'__ALL__' };
+
+  function renderEbEmployees(){
+    google.script.run
+      .withSuccessHandler(function(rows){
+        EB_EMPLOYEES_CACHE_ = rows || [];
+        paintPage_('eb-employees', ebEmployeesPageHtml_());
+      })
+      .withFailureHandler(function(e){ handleBackendError(e, pageErrorEl_('eb-employees')); })
+      .ebListEmployees(STATE.token, null);
+  }
+
+  function onFilterChangeEbEmployees_(key, val){
+    if(key === '__RESET__'){ FILTER_STATE_EB_EMPLOYEES_ = { q:'', registrationStatus:'__ALL__', employeeStatus:'__ALL__' }; }
+    else { FILTER_STATE_EB_EMPLOYEES_[key] = val; }
+    paintPage_('eb-employees', ebEmployeesPageHtml_());
+  }
+
+  function findEbEmployee_(employeeId){
+    for(var i=0;i<EB_EMPLOYEES_CACHE_.length;i++){ if(EB_EMPLOYEES_CACHE_[i].EmployeeID === employeeId) return EB_EMPLOYEES_CACHE_[i]; }
+    return null;
+  }
+
+  function ebEmployeesPageHtml_(){
+    var rows = EB_EMPLOYEES_CACHE_;
+    var fieldConfigs = [
+      {key:'registrationStatus', label:'Registrasi', options:uniqueOptions_(rows,'RegistrationStatus'), match:function(r,v){return r.RegistrationStatus===v;}},
+      {key:'employeeStatus', label:'Status Karyawan', options:uniqueOptions_(rows,'EmployeeStatus'), match:function(r,v){return r.EmployeeStatus===v;}}
+    ];
+    var filtered = applyListFilters_(rows, FILTER_STATE_EB_EMPLOYEES_, ['FullName','Email','IDCardNumber','CompanyName','EmployeeID'], fieldConfigs);
+    var filterHtml = filterBarHtml_('onFilterChangeEbEmployees_', 'Cari nama, email, No. ID Card, atau perusahaan...', fieldConfigs, FILTER_STATE_EB_EMPLOYEES_, filtered.length, rows.length);
+    var canManage = ['ADMIN','SUPERVISOR','MANAGER'].indexOf(STATE.user.role) !== -1;
+    var cols = [
+      {label:'No.', render:function(r,i){ return String(i+1); }},
+      {label:'Employee ID', render:function(r){ return '<span class="id-chip">'+escapeHtml(r.EmployeeID||'-')+'</span>'; }},
+      {label:'Nama', titleCol:true, render:function(r){
+        var initials = (r.FullName||'?').trim().split(/\s+/).slice(0,2).map(function(w){return w.charAt(0).toUpperCase();}).join('') || '?';
+        return '<div class="cell-person"><div class="cell-person-avatar">'+escapeHtml(initials)+'</div>' +
+          '<span class="cell-person-name">'+escapeHtml(r.FullName||'-')+'</span></div>';
+      }},
+      {label:'Email', field:'Email', fullWidth:true},
+      {label:'No. ID Card', field:'IDCardNumber'},
+      {label:'Perusahaan', field:'CompanyName'},
+      {label:'Registrasi', render:function(r){return ebStatusBadge_(r.RegistrationStatus);}},
+      {label:'Status Karyawan', render:function(r){return ebStatusBadge_(r.EmployeeStatus);}}
+    ];
+    var actions = function(r){
+      var html = '<div class="row-actions" style="flex-wrap:wrap;">';
+      if((r.RegistrationStatus === 'SUBMITTED' || r.RegistrationStatus === 'UNDER_REVIEW') && canManage){
+        html += '<button class="btn btn-secondary btn-sm" onclick="reviewEbEmployeePrompt(\''+r.EmployeeID+'\',\'APPROVE\')">Approve</button> ' +
+                '<button class="btn btn-ghost btn-sm" onclick="reviewEbEmployeePrompt(\''+r.EmployeeID+'\',\'REJECT\')">Reject</button> ';
+      }
+      html += '<button class="action-btn view" title="Lihat" onclick="viewEbEmployee_(\''+r.EmployeeID+'\')">'+ICONS.view+'</button>';
+      if(canManage && r.RegistrationStatus === 'APPROVED'){
+        html += '<button class="action-btn doc" title="Kirim Ulang Kredensial" onclick="resendEbEmployeeCredentialsConfirm_(\''+r.EmployeeID+'\',\''+escapeHtml(r.FullName||'').replace(/'/g,"\\'")+'\')">'+ICONS.mail+'</button>';
+        if(String(r.EmployeeStatus).toUpperCase() === 'INACTIVE'){
+          html += '<button class="action-btn" title="Aktifkan Kembali" onclick="setEbEmployeeStatusConfirm_(\''+r.EmployeeID+'\',\'ACTIVE\',\''+escapeHtml(r.FullName||'').replace(/'/g,"\\'")+'\')" style="color:var(--ag-green);">'+ICONS.power+'</button>';
+        } else {
+          html += '<button class="action-btn delete" title="Nonaktifkan" onclick="setEbEmployeeStatusConfirm_(\''+r.EmployeeID+'\',\'INACTIVE\',\''+escapeHtml(r.FullName||'').replace(/'/g,"\\'")+'\')">'+ICONS.power+'</button>';
+        }
+      }
+      html += '</div>';
+      return html;
+    };
+    return '<div class="card"><div class="card-header"><span class="card-title">Daftar Karyawan (Employee Benefit)</span></div>' +
+      filterHtml +
+      renderTableOrCards_(cols, filtered, actions,
+        rows.length ? 'Tidak ada karyawan yang cocok' : 'Belum ada pendaftaran',
+        rows.length ? 'Coba ubah kata kunci pencarian atau filter yang dipakai.' : 'Karyawan yang mendaftar lewat halaman publik akan muncul di sini untuk direview.',
+        ICONS.users) + '</div>';
+  }
+
+  function viewEbEmployee_(employeeId){
+    var e = findEbEmployee_(employeeId);
+    if(!e){ showToast('Data tidak ditemukan.','error'); return; }
+    var head =
+      '<div class="agent-detail-head">' +
+        '<div class="agent-detail-avatar">'+ICONS.users+'</div>' +
+        '<div class="agent-detail-head-meta">' +
+          '<div class="agent-detail-name">'+escapeHtml(e.FullName||'-')+'</div>' +
+          '<div class="agent-detail-id">'+escapeHtml(e.EmployeeID||'-')+'</div>' +
+          '<div class="agent-detail-badges">' + ebStatusBadge_(e.RegistrationStatus) + ebStatusBadge_(e.EmployeeStatus) + '</div>' +
+        '</div>' +
+      '</div>';
+    var infoGrid =
+      '<div class="agent-detail-section-title">Data Diri</div>' +
+      '<div class="agent-detail-grid">' +
+        detailField_('Email', escapeHtml(e.Email || '-')) +
+        detailField_('No. Telepon', escapeHtml(e.Phone || '-')) +
+        detailField_('No. ID Card', escapeHtml(e.IDCardNumber || '-')) +
+        detailField_('Perusahaan', escapeHtml(e.CompanyName || '-')) +
+      '</div>';
+    var docsGrid =
+      '<div class="agent-detail-section-title">Dokumen</div>' +
+      '<div class="agent-detail-grid">' +
+        detailField_('Foto KTP', e.KTPFileURL ? '<a href="'+escapeHtml(e.KTPFileURL)+'" target="_blank">Lihat Dokumen</a>' : '-') +
+        detailField_('Foto ID Card Karyawan', e.IDCardFileURL ? '<a href="'+escapeHtml(e.IDCardFileURL)+'" target="_blank">Lihat Dokumen</a>' : '-') +
+      '</div>';
+    var rejectionHtml = e.RejectionNote
+      ? '<div class="agent-detail-section-title">Catatan Penolakan</div>' +
+        '<div style="font-size:13px;color:var(--ag-red);background:#FDECEC;padding:10px 12px;border-radius:var(--radius-sm);">'+escapeHtml(e.RejectionNote)+'</div>'
+      : '';
+    openModal(
+      '<div class="modal-header"><span class="modal-title">Detail Karyawan</span>' +
+      '<button class="modal-close" onclick="closeModal()">'+CLOSE_ICON+'</button></div>' +
+      '<div class="modal-body">'+head+infoGrid+docsGrid+rejectionHtml+'</div>' +
+      '<div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Tutup</button></div>'
+    );
+  }
+
+  /** decision: 'APPROVE' | 'REJECT' — mirror reviewAgentPrompt/doReviewAgent_. Approve
+   *  otomatis membuat akun login EMPLOYEE & mengirim email kredensial (ebReviewEmployee
+   *  di backend); Reject wajib diisi alasan dan otomatis mengirim email penolakan. */
+  function reviewEbEmployeePrompt(employeeId, decision){
+    var e = findEbEmployee_(employeeId);
+    var name = e ? e.FullName : employeeId;
+
+    if(decision === 'APPROVE'){
+      openConfirmModal({
+        title: 'Approve Karyawan?',
+        message: 'Pendaftaran "'+name+'" akan disetujui. Akun login akan otomatis dibuat dan dikirimkan ke email karyawan.',
+        confirmLabel: 'Ya, Approve',
+        danger: false,
+        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+        onConfirm: function(){ doReviewEbEmployee_(employeeId, 'APPROVE', ''); }
+      });
+      return;
+    }
+
+    var body =
+      '<p style="font-size:13.5px;color:var(--ag-gray-600);margin:0 0 16px;">Pendaftaran "'+escapeHtml(name)+'" akan ditolak. Jelaskan alasannya agar karyawan tahu apa yang harus diperbaiki.</p>' +
+      '<div class="form-group"><label>Alasan Penolakan</label><textarea id="ebEmployeeRejectNote" rows="3" placeholder="Contoh: Foto KTP buram, mohon upload ulang."></textarea></div>';
+    openFormModal('Reject Karyawan', body, function(){
+      var note = val_('ebEmployeeRejectNote').trim();
+      if(!note){ showToast('Alasan penolakan wajib diisi.','error'); return; }
+      closeModal();
+      doReviewEbEmployee_(employeeId, 'REJECT', note);
+    });
+  }
+
+  function doReviewEbEmployee_(employeeId, decision, note){
+    setPageLoading_(true, decision === 'APPROVE' ? 'Membuat akun login & mengirim email' : 'Memproses penolakan');
+    google.script.run.withSuccessHandler(function(res){
+      setPageLoading_(false);
+      if(res.success){
+        showToast(res.message || (decision === 'APPROVE' ? 'Karyawan disetujui.' : 'Karyawan ditolak.'), 'success');
+        renderEbEmployees();
+      } else showToast(res.message || 'Gagal memproses.','error');
+    }).withFailureHandler(function(e){ setPageLoading_(false); handleBackendError(e); }).ebReviewEmployee(STATE.token, employeeId, decision, note);
+  }
+
+  function resendEbEmployeeCredentialsConfirm_(employeeId, name){
+    openConfirmModal({
+      title: 'Kirim Ulang Kredensial?',
+      message: 'Password login baru akan dibuat untuk "'+name+'" dan dikirim ke email karyawan.',
+      confirmLabel: 'Ya, Kirim', danger: false, icon: ICONS.mail,
+      onConfirm: function(){
+        setPageLoading_(true, 'Mengirim email kredensial');
+        google.script.run
+          .withSuccessHandler(function(res){
+            setPageLoading_(false);
+            if(res.success){ showToast(res.message || 'Kredensial baru terkirim.','success'); }
+            else showToast(res.message || 'Gagal mengirim.','error');
+          })
+          .withFailureHandler(function(e){ setPageLoading_(false); handleBackendError(e); })
+          .ebResendEmployeeCredentials(STATE.token, employeeId);
+      }
+    });
+  }
+
+  function setEbEmployeeStatusConfirm_(employeeId, status, name){
+    var isActivate = status === 'ACTIVE';
+    openConfirmModal({
+      title: isActivate ? 'Aktifkan Karyawan?' : 'Nonaktifkan Karyawan?',
+      message: isActivate
+        ? 'QR Code "'+name+'" akan diaktifkan kembali dan bisa dipakai belanja di store.'
+        : 'QR Code "'+name+'" akan dinonaktifkan sementara — karyawan tidak bisa memakai benefit sampai diaktifkan kembali.',
+      confirmLabel: isActivate ? 'Ya, Aktifkan' : 'Ya, Nonaktifkan',
+      danger: !isActivate, icon: ICONS.power,
+      onConfirm: function(){
+        setPageLoading_(true);
+        google.script.run
+          .withSuccessHandler(function(res){
+            setPageLoading_(false);
+            if(res.success){ showToast(res.message || 'Status diperbarui.','success'); renderEbEmployees(); }
+            else showToast(res.message || 'Gagal memperbarui status.','error');
+          })
+          .withFailureHandler(function(e){ setPageLoading_(false); handleBackendError(e); })
+          .ebSetEmployeeStatus(STATE.token, employeeId, status);
+      }
+    });
+  }
+
+  // =============================================================================
   // EMPLOYEE BENEFIT — KELOLA STORE USER (ADMIN / SUPERVISOR / MANAGER)
   // Kelola akun kasir (role STORE) yang dipakai untuk scan QR karyawan & mencatat
-  // transaksi. Password dibuat otomatis & dikirim ke email store — TIDAK ada input
-  // password manual di form ini (lihat ebSaveStoreUser di EmployeeBenefit.gs).
+  // transaksi. Password boleh dikosongkan (sistem generate otomatis) ATAU diisi manual
+  // (min 6 karakter) lewat ebStoreUserPasswordField_ — keduanya selalu dikirim ke email
+  // store (lihat ebSaveStoreUser di EmployeeBenefit.gs).
   // =============================================================================
   var EB_STORE_USERS_CACHE_ = [];
   var FILTER_STATE_EB_STORE_USERS_ = { q:'', status:'__ALL__' };
@@ -16532,6 +16736,27 @@
     );
   }
 
+  /** Field password manual + toggle show/hide, dipakai bareng di form Tambah & Edit
+   *  Store User. Kosong = boleh: saat Tambah artinya sistem generate password acak;
+   *  saat Edit artinya password lama TIDAK diubah. Diisi manual (min 6 karakter) =
+   *  password itu yang dipakai, lalu selalu dikirim ke email store (lihat
+   *  ebSaveStoreUser di EmployeeBenefit.gs). */
+  function ebStoreUserPasswordField_(isEdit){
+    var id = 'ebStoreUserPassword';
+    var label = isEdit ? 'Reset Password (opsional)' : 'Password Login (opsional)';
+    var hint = isEdit
+      ? 'Kosongkan supaya password lama tidak berubah. Isi untuk mereset password store ini — password baru akan dikirim ke email di atas.'
+      : 'Kosongkan supaya sistem membuatkan password acak otomatis. Atau isi sendiri (min. 6 karakter) — password (manual/acak) tetap dikirim ke email store di atas.';
+    return '<div class="form-group"><label>'+label+'</label><div class="input-with-icon">' +
+      '<svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="11" width="15" height="9" rx="2"/><path d="M8 11V7.5a4 4 0 0 1 8 0V11"/></svg>' +
+      '<input type="password" id="'+id+'" autocomplete="new-password" placeholder="Min. 6 karakter">' +
+      '<button type="button" class="pw-toggle-btn" onclick="togglePasswordVisibility_(\''+id+'\', this)" tabindex="-1" aria-label="Tampilkan password">' +
+        '<svg class="eye-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg>' +
+        '<svg class="eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a21.4 21.4 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 7 11 7a21.5 21.5 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24"/><path d="M1 1l22 22"/></svg>' +
+      '</button>' +
+    '</div><div class="form-hint">'+hint+'</div></div>';
+  }
+
   function editEbStoreUser_(userId){
     var s = userId ? findEbStoreUser_(userId) : {};
     s = s || {};
@@ -16541,23 +16766,23 @@
         '<option value="ACTIVE"'+(statusVal==='ACTIVE'?' selected':'')+'>ACTIVE</option>' +
         '<option value="INACTIVE"'+(statusVal==='INACTIVE'?' selected':'')+'>INACTIVE</option>' +
       '</select></div>';
-    var passwordNote = userId
-      ? ''
-      : '<div class="form-hint">Password login akan dibuat otomatis oleh sistem & dikirim ke email store di atas — tidak perlu diisi manual.</div>';
     var body =
       formField_('ebStoreUserName','Nama Store', s.StoreName, 'text', 'Contoh: Store Gondomanan', true, ICONS.stores) +
       formField_('ebStoreUserEmail','Email', s.Email, 'email', 'Contoh: store.gondomanan@agrinesia.co.id', true, ICONS.mail) +
-      passwordNote +
+      ebStoreUserPasswordField_(!!userId) +
       statusField;
     openFormModal(userId ? 'Edit Store User' : 'Tambah Store User', body, function(){ saveEbStoreUserForm_(userId); });
   }
 
   function saveEbStoreUserForm_(userId){
+    var password = val_('ebStoreUserPassword').trim();
+    if(password && password.length < 6){ showToast('Password minimal 6 karakter.','error'); return; }
     var payload = {
       userId: userId || undefined,
       storeName: val_('ebStoreUserName'),
       email: val_('ebStoreUserEmail'),
-      status: val_('ebStoreUserStatus') || 'ACTIVE'
+      status: val_('ebStoreUserStatus') || 'ACTIVE',
+      password: password || undefined
     };
     if(!payload.storeName){ showToast('Nama store wajib diisi.','error'); return; }
     if(!payload.email){ showToast('Email wajib diisi.','error'); return; }
