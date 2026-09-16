@@ -5589,8 +5589,15 @@
     // MAX_CONCURRENT_LO sekarang 2 (bukan 1) di api-bridge.js, beberapa preload boleh
     // tumpang-tindih sedikit tanpa membanjiri GAS — sebelumnya 1500ms diperlukan karena
     // LO cuma py 1 slot, jadi tiap preload HARUS selesai total dulu baru boleh mulai lagi.
-    var STAGGER_MS = 600;
-    var PRELOAD_PAGE_LIMIT_ = 6;
+    // FIX (bagian dari perbaikan "login 2-3 device berdekatan bikin yang belakangan kena
+    // error sesi palsu"): STAGGER_MS dinaikkan 600ms -> 1100ms dan PRELOAD_PAGE_LIMIT_
+    // diturunkan 6 -> 4. Ini memperkecil jumlah request preload yang tumpang tindih di
+    // window waktu manapun dari SATU device — kalau beberapa device kebetulan login
+    // berdekatan, total request yang berebut kuota eksekusi paralel GAS di detik yang sama
+    // jadi jauh lebih sedikit. api-bridge.js juga sudah retry otomatis kalau tetap kena
+    // respons "sibuk", jadi kombinasi keduanya menghilangkan gejala "sesi kedaluwarsa palsu".
+    var STAGGER_MS = 1100;
+    var PRELOAD_PAGE_LIMIT_ = 4;
     keys = keys.slice(0, PRELOAD_PAGE_LIMIT_);
     keys.forEach(function(key, i){
       setTimeout(function(){
