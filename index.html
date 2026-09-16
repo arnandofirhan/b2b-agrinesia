@@ -15726,6 +15726,8 @@
   // ROLE EMPLOYEE — DASHBOARD
   // =============================================================================
   var EB_EMP_DASH_CACHE_ = null;
+  // '' = biarkan backend pakai default (bulan berjalan). Diisi lewat dropdown filter bulan.
+  var EB_EMP_DASH_YM_ = '';
   function renderEmployeeDashboard(){
     var content = document.getElementById('content');
     if(EB_EMP_DASH_CACHE_){
@@ -15744,7 +15746,31 @@
       .withFailureHandler(function(err){
         if(!EB_EMP_DASH_CACHE_) handleBackendError(err, document.getElementById('content'));
       })
-      .ebGetMyDashboard(STATE.token, null);
+      .ebGetMyDashboard(STATE.token, EB_EMP_DASH_YM_ || null);
+  }
+
+  /** Dipanggil dari dropdown filter bulan di header Dashboard — ganti bulan yang ditampilkan
+   *  lalu fetch ulang (backend ebGetMyDashboard sudah mendukung parameter yearMonth, sebelumnya
+   *  cuma belum ada UI-nya sama sekali di frontend). Cache lama sengaja dikosongkan supaya
+   *  tidak sempat kelihatan data bulan SEBELUMNYA sekilas sebelum data bulan baru datang. */
+  function ebChangeDashboardMonth_(ym){
+    EB_EMP_DASH_YM_ = ym;
+    EB_EMP_DASH_CACHE_ = null;
+    renderEmployeeDashboard();
+  }
+
+  /** 12 bulan terakhir (termasuk bulan berjalan) utk isi dropdown filter periode — format
+   *  value "YYYY-MM" sama persis dengan yang dipakai backend (ebNormalizeYearMonth_). */
+  function ebMonthOptions_(){
+    var names = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+    var now = new Date();
+    var out = [];
+    for(var i=0;i<12;i++){
+      var d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+      var mm = String(d.getMonth()+1); if(mm.length<2) mm='0'+mm;
+      out.push({ value: d.getFullYear()+'-'+mm, label: names[d.getMonth()]+' '+d.getFullYear() });
+    }
+    return out;
   }
 
   function ebEmpDashboardHtml_(d){
@@ -15764,18 +15790,26 @@
         '<div class="empty-state-title">Belum ada transaksi</div>' +
         '<div class="empty-state-sub">Riwayat belanja Anda akan muncul di sini.</div></div>';
 
+    var monthOptsHtml = ebMonthOptions_().map(function(m){
+      return '<option value="'+m.value+'"'+(m.value===d.yearMonth?' selected':'')+'>'+escapeHtml(m.label)+'</option>';
+    }).join('');
+
     return '<div class="eb-dash">' +
-      '<div class="eb-dash-greet">Halo, <strong>'+escapeHtml(name)+'</strong> &mdash; berikut ringkasan benefit Anda periode <strong>'+escapeHtml(d.periodLabel)+'</strong>.</div>' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px;">' +
+        '<div class="eb-dash-greet" style="margin-bottom:0;">Halo, <strong>'+escapeHtml(name)+'</strong> &mdash; ringkasan benefit Anda.</div>' +
+        '<div class="filter-select-wrap"><select class="filter-select" onchange="ebChangeDashboardMonth_(this.value)">'+monthOptsHtml+'</select></div>' +
+      '</div>' +
+      // FIX: dulu ada 2 kartu KPI yang isinya nyaris sama maknanya dan bikin bingung —
+      // "Transaksi Bulan Ini" (jumlah transaksi) vs "Total Belanja Bulan Ini" (nominal Rp).
+      // Sekarang digabung jadi SATU kartu: nominal tetap jadi angka utama (paling relevan utk
+      // benefit karyawan), jumlah transaksinya dipindah jadi keterangan kecil di bawahnya —
+      // info yang sama tetap ada, cuma tidak lagi berupa kartu terpisah.
       '<div class="kpi-grid">' +
-        '<div class="kpi-card kpi-green">' +
-          '<div class="kpi-icon">'+ICONS.transactions+'</div>' +
-          '<div class="kpi-value">'+d.monthTrxCount+'</div>' +
-          '<div class="kpi-label">Transaksi Bulan Ini</div>' +
-        '</div>' +
         '<div class="kpi-card kpi-blue">' +
           '<div class="kpi-icon">'+ICONS.reports+'</div>' +
           '<div class="kpi-value">'+formatRupiah(d.monthTotalAmount)+'</div>' +
           '<div class="kpi-label">Total Belanja Bulan Ini</div>' +
+          '<div style="position:relative;z-index:1;font-size:10.5px;color:rgba(255,255,255,.85);margin-top:2px;">'+d.monthTrxCount+' transaksi</div>' +
         '</div>' +
         '<div class="kpi-card kpi-purple">' +
           '<div class="kpi-icon">'+ICONS.cart+'</div>' +
@@ -15913,6 +15947,8 @@
   // FIX: pola cache-lalu-refresh yang sama diterapkan di sini juga — dulu selalu spinner
   // kosong tiap dibuka ulang.
   var EB_EMP_TRX_CACHE_ = null;
+  // '' = Semua Bulan (default, sama seperti perilaku sebelumnya). Diisi lewat dropdown filter.
+  var EB_EMP_TRX_YM_ = '';
   function renderEmployeeTransactions(){
     var content = document.getElementById('content');
     if(EB_EMP_TRX_CACHE_){
@@ -15929,14 +15965,32 @@
       .withFailureHandler(function(err){
         if(!EB_EMP_TRX_CACHE_) handleBackendError(err, document.getElementById('content'));
       })
-      .ebGetMyTransactions(STATE.token, null);
+      .ebGetMyTransactions(STATE.token, EB_EMP_TRX_YM_ || null);
+  }
+
+  /** Dipanggil dari dropdown filter bulan di halaman Riwayat Transaksi (backend
+   *  ebGetMyTransactions sudah mendukung parameter yearMonth — cuma belum ada UI-nya). */
+  function ebChangeTrxMonth_(ym){
+    EB_EMP_TRX_YM_ = ym;
+    EB_EMP_TRX_CACHE_ = null;
+    renderEmployeeTransactions();
   }
 
   function ebEmpTransactionsHtml_(rows){
+    var monthOptsHtml = '<option value=""'+(EB_EMP_TRX_YM_===''?' selected':'')+'>Semua Bulan</option>' +
+      ebMonthOptions_().map(function(m){
+        return '<option value="'+m.value+'"'+(m.value===EB_EMP_TRX_YM_?' selected':'')+'>'+escapeHtml(m.label)+'</option>';
+      }).join('');
+    var filterHtml =
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px;">' +
+        '<div class="section-title" style="margin-bottom:0;">Riwayat Transaksi ('+rows.length+')</div>' +
+        '<div class="filter-select-wrap"><select class="filter-select" onchange="ebChangeTrxMonth_(this.value)">'+monthOptsHtml+'</select></div>' +
+      '</div>';
     if(!rows.length){
-      return '<div class="card"><div class="empty-state"><div class="empty-state-icon">'+ICONS.cart+'</div>' +
+      return '<div class="card">' + filterHtml +
+        '<div class="empty-state"><div class="empty-state-icon">'+ICONS.cart+'</div>' +
         '<div class="empty-state-title">Belum ada transaksi</div>' +
-        '<div class="empty-state-sub">Riwayat belanja Anda akan tampil di sini setelah kasir mencatat transaksi.</div></div></div>';
+        '<div class="empty-state-sub">'+(EB_EMP_TRX_YM_ ? 'Tidak ada transaksi pada bulan yang dipilih.' : 'Riwayat belanja Anda akan tampil di sini setelah kasir mencatat transaksi.')+'</div></div></div>';
     }
     var rowsHtml = rows.map(function(t){
       return '<div class="eb-trx-item" onclick="openEbTrxDetail_(\''+escapeHtml(t.trxId)+'\')">' +
@@ -15950,7 +16004,7 @@
         '</div>' +
       '</div>';
     }).join('');
-    return '<div class="card"><div class="section-title">Riwayat Transaksi ('+rows.length+')</div>' +
+    return '<div class="card">' + filterHtml +
       '<div class="eb-trx-list">'+rowsHtml+'</div></div>';
   }
 
