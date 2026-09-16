@@ -3634,10 +3634,10 @@
           </button>
         </form>
         <p style="text-align:center;font-size:12.5px;margin-top:20px;color:var(--ag-gray-500);">
-          Belum jadi Agent? <a href="#" onclick="openRegisterModal();return false;" style="color:var(--ag-green);font-weight:600;">Daftar di sini</a>
+          Belum jadi Agent? <a href="#" onclick="openRegChoiceModal();return false;" style="color:var(--ag-green);font-weight:600;">Daftar di sini</a>
         </p>
         <p style="text-align:center;font-size:12.5px;margin-top:6px;color:var(--ag-gray-500);">
-          Sudah daftar? <a href="#" onclick="openCheckStatusModal();return false;" style="color:var(--ag-green);font-weight:600;">Cek status pendaftaran</a>
+          Sudah daftar? <a href="#" onclick="openCsChoiceModal();return false;" style="color:var(--ag-green);font-weight:600;">Cek status pendaftaran</a>
         </p>
       </div>
     </div>
@@ -3777,6 +3777,242 @@
       </div>
     </div>
   </div>
+
+<!-- =====================================================================
+     TAMBAHAN INDEX.HTML — EMPLOYEE BENEFIT (Tahap 2)
+     Tempel SELURUH blok ini TEPAT SEBELUM baris:
+       <!-- ===================== APP SHELL ===================== -->
+     (yaitu setelah penutup modal #checkStatusModal yang sudah ada).
+     Tidak ada satupun elemen lama yang diubah — ini murni tambahan baru.
+     ===================================================================== -->
+
+<!-- ===================== PILIH JENIS PENDAFTARAN ===================== -->
+<!-- Dibuka dari link "Daftar di sini" di login screen (ganti onclick-nya, lihat
+     PATCH_LOGIN_SCREEN di bawah). Menampilkan 2 pilihan: Agent B2B / Employee Benefit. -->
+<div id="regChoiceModal" class="reg-overlay">
+  <div class="reg-card" style="max-width:460px;">
+    <div class="reg-hero">
+      <div class="reg-hero-top">
+        <div>
+          <span class="reg-hero-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><path d="M12 22c4.97 0 9-4.03 9-9-4.97 0-9 4.03-9 9Z"/><path d="M12 22C7.03 22 3 17.97 3 13c4.97 0 9 4.03 9 9Z"/><path d="M12 13V2"/></svg>
+            Gabung Agrinesia
+          </span>
+          <h2 class="reg-hero-title">Daftar Sebagai...</h2>
+          <p class="reg-hero-sub">Pilih jenis pendaftaran yang sesuai dengan kebutuhan Anda.</p>
+        </div>
+        <button class="reg-close" onclick="closeRegChoiceModal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="reg-card-scroll">
+      <div class="reg-body" style="padding-top:20px;">
+        <div class="reg-choice-grid">
+          <button type="button" class="reg-choice-card" onclick="closeRegChoiceModal();openRegisterModal();">
+            <span class="reg-choice-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </span>
+            <span class="reg-choice-title">Agent B2B</span>
+            <span class="reg-choice-desc">Daftar sebagai mitra penjual produk Agrinesia (PO, komisi, katalog).</span>
+            <span class="reg-choice-arrow">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </span>
+          </button>
+          <button type="button" class="reg-choice-card" onclick="closeRegChoiceModal();openEbRegisterModal();">
+            <span class="reg-choice-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+            </span>
+            <span class="reg-choice-title">Employee Benefit</span>
+            <span class="reg-choice-desc">Daftar sebagai karyawan perusahaan mitra untuk menikmati potongan belanja.</span>
+            <span class="reg-choice-arrow">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== PILIH JENIS CEK STATUS ===================== -->
+<div id="csChoiceModal" class="reg-overlay">
+  <div class="reg-card" style="max-width:460px;">
+    <div class="reg-hero">
+      <div class="reg-hero-top">
+        <div>
+          <span class="reg-hero-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg>
+            Cek Status
+          </span>
+          <h2 class="reg-hero-title">Cek Status Pendaftaran</h2>
+          <p class="reg-hero-sub">Pilih jenis pendaftaran yang ingin Anda cek statusnya.</p>
+        </div>
+        <button class="reg-close" onclick="closeCsChoiceModal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="reg-card-scroll">
+      <div class="reg-body" style="padding-top:20px;">
+        <div class="reg-choice-grid">
+          <button type="button" class="reg-choice-card" onclick="closeCsChoiceModal();openCheckStatusModal();">
+            <span class="reg-choice-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </span>
+            <span class="reg-choice-title">Agent B2B</span>
+            <span class="reg-choice-desc">Cek status pendaftaran Agent memakai Email &amp; Nomor KTP.</span>
+            <span class="reg-choice-arrow">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </span>
+          </button>
+          <button type="button" class="reg-choice-card" onclick="closeCsChoiceModal();openEbCheckStatusModal();">
+            <span class="reg-choice-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+            </span>
+            <span class="reg-choice-title">Employee Benefit</span>
+            <span class="reg-choice-desc">Cek status pendaftaran Employee Benefit cukup pakai Nomor ID Card.</span>
+            <span class="reg-choice-arrow">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== EMPLOYEE BENEFIT REGISTRATION MODAL ===================== -->
+<div id="ebRegisterModal" class="reg-overlay">
+  <div class="reg-card">
+    <div class="reg-hero">
+      <div class="reg-hero-top">
+        <div>
+          <span class="reg-hero-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+            Gabung Agrinesia
+          </span>
+          <h2 class="reg-hero-title">Registrasi Employee Benefit</h2>
+          <p class="reg-hero-sub">Lengkapi data diri &amp; dokumen Anda untuk menikmati benefit belanja karyawan.</p>
+        </div>
+        <button class="reg-close" onclick="closeEbRegisterModal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="reg-card-scroll">
+      <div class="reg-body">
+        <div class="reg-section-title"><span class="reg-section-num">1</span> Data Diri</div>
+
+        <div class="form-group"><label>Nama Lengkap<span class="required-mark">*</span></label><input id="ebRegFullName" type="text" placeholder="Nama sesuai KTP" oninput="updateEbRegFormState_()"></div>
+
+        <div class="field-row-2">
+          <div class="form-group">
+            <label>Email<span class="required-mark">*</span></label>
+            <div class="input-with-icon">
+              <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16v12H4z"/><path d="m4 7 8 6 8-6"/></svg>
+              <input id="ebRegEmail" type="email" placeholder="nama@email.com" oninput="updateEbRegFormState_()">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>No. Telepon / WhatsApp</label>
+            <div class="input-with-icon">
+              <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+              <input id="ebRegPhone" type="text" inputmode="numeric" maxlength="15" placeholder="08xxxxxxxxxx" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,15);updateEbRegFormState_();">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Nomor ID Card Karyawan<span class="required-mark">*</span></label>
+          <div class="input-with-icon">
+            <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.4"/><circle cx="8" cy="12" r="2.1"/><path d="M13 10h6M13 14h4"/></svg>
+            <input id="ebRegIDCardNumber" type="text" maxlength="30" placeholder="Nomor ID Card sesuai kartu karyawan" oninput="updateEbRegFormState_()">
+          </div>
+          <div class="field-hint">Nomor ini juga dipakai untuk cek status pendaftaran nanti — simpan baik-baik.</div>
+        </div>
+
+        <div class="form-group">
+          <label>Perusahaan<span class="required-mark">*</span></label>
+          <div class="input-with-icon">
+            <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+            <select id="ebRegCompanyId" onchange="updateEbRegFormState_()">
+              <option value="">Memuat daftar perusahaan...</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="reg-section-title"><span class="reg-section-num">2</span> <span>Upload Dokumen<span class="required-mark">*</span></span></div>
+        <div class="doc-grid" id="ebRegDocGrid">
+          <!-- doc tiles injected by initEbRegisterDocTiles() -->
+        </div>
+
+        <div id="ebRegError" class="form-error" style="display:none;"></div>
+      </div>
+
+      <div class="reg-footer">
+        <button class="btn btn-ghost" onclick="closeEbRegisterModal()">Batal</button>
+        <button class="btn btn-primary" id="ebRegSubmitBtn" onclick="submitEbRegistration()" disabled>Kirim Registrasi</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Splash saat submit (sama pola dengan regSubmitOverlay Agent) -->
+<div id="ebRegSubmitOverlay" class="reg-submit-overlay">
+  <div class="reg-submit-card">
+    <div class="reg-submit-logo"><img class="brand-mark-img" id="ebRegSubmitLogoImg" alt="Agrinesia"></div>
+    <div class="reg-submit-text">Mengirim registrasi<span class="reg-submit-dot">.</span><span class="reg-submit-dot">.</span><span class="reg-submit-dot">.</span></div>
+    <div class="reg-submit-sub">Mengunggah dokumen &amp; menyimpan data Anda</div>
+  </div>
+</div>
+
+<!-- Popup sukses (sama pola dengan regSuccessOverlay Agent) -->
+<div id="ebRegSuccessOverlay" class="success-overlay">
+  <div class="success-card">
+    <div class="success-check">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+    </div>
+    <h3 class="success-title">Registrasi Terkirim!</h3>
+    <p class="success-message" id="ebRegSuccessMessage">Terima kasih, data Anda sudah kami terima dan sedang direview oleh tim kami.</p>
+    <button class="btn btn-primary" onclick="closeEbRegisterSuccess()">Oke, Mengerti</button>
+  </div>
+</div>
+
+<!-- ===================== EMPLOYEE BENEFIT — CEK STATUS (No. ID Card saja) ===================== -->
+<div id="ebCheckStatusModal" class="reg-overlay">
+  <div class="reg-card" style="max-width:480px;">
+    <div class="reg-hero">
+      <div class="reg-hero-top">
+        <div>
+          <span class="reg-hero-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg>
+            Cek Status
+          </span>
+          <h2 class="reg-hero-title">Status Employee Benefit</h2>
+          <p class="reg-hero-sub">Masukkan Nomor ID Card yang Anda pakai saat mendaftar.</p>
+        </div>
+        <button class="reg-close" onclick="closeEbCheckStatusModal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="reg-card-scroll">
+      <div class="reg-body" id="ebCheckStatusBody">
+        <div class="form-group">
+          <label>Nomor ID Card<span class="required-mark">*</span></label>
+          <input id="ebCsIDCard" type="text" placeholder="Nomor ID Card Karyawan">
+        </div>
+        <div id="ebCsError" class="form-error" style="display:none;"></div>
+      </div>
+    </div>
+    <div class="reg-footer">
+      <button class="btn btn-ghost" onclick="closeEbCheckStatusModal()">Tutup</button>
+      <button class="btn btn-primary" id="ebCsSubmitBtn" onclick="submitEbCheckStatus_()">Cek Status</button>
+    </div>
+  </div>
+</div>
 
   <!-- ===================== APP SHELL ===================== -->
   <div id="appShell" class="app-shell" style="display:none;">
