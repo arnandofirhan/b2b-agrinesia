@@ -3780,8 +3780,7 @@
 
 <!-- =====================================================================
      TAMBAHAN INDEX.HTML — EMPLOYEE BENEFIT (Tahap 2)
-     Tempel SELURUH blok ini TEPAT SEBELUM baris:
-       <!-- ===================== APP SHELL ===================== -->
+     Tempel SELURUH blok ini TEPAT SEBELUM baris "APP SHELL"
      (yaitu setelah penutup modal #checkStatusModal yang sudah ada).
      Tidak ada satupun elemen lama yang diubah — ini murni tambahan baru.
      ===================================================================== -->
@@ -6768,7 +6767,7 @@
       lockBadge = '<div class="doc-preview-lock-badge" title="'+escapeHtml(doc.lockedReason||'Dokumen ini tidak bisa diubah/dihapus.')+'">'+ICONS.lock+'</div>';
     } else if(editableAgentId && doc.type){
       var inputId = 'docReplaceInput_'+key;
-      var replaceHandler = editMode === 'public' ? 'handlePublicDocReplaceChange_' : (editMode === 'self' ? 'handleAgentSelfDocReplaceChange_' : 'handleDocReplaceChange_');
+      var replaceHandler = editMode === 'public' ? 'handlePublicDocReplaceChange_' : (editMode === 'self' ? 'handleAgentSelfDocReplaceChange_' : (editMode === 'eb-public' ? 'handleEbPublicDocReplaceChange_' : 'handleDocReplaceChange_'));
       editBtn =
         '<button type="button" class="doc-preview-edit-btn" title="Ganti dokumen" ' +
           'onclick="event.stopPropagation();document.getElementById(\''+inputId+'\').click();">'+ICONS.edit+'</button>' +
@@ -6957,6 +6956,315 @@
   function closeCheckStatusModal(){
     document.getElementById('checkStatusModal').classList.remove('show');
     CHECK_STATUS_IDENTITY_ = null;
+  }
+
+  // ===== Modal pilihan jenis pendaftaran (Daftar di sini) =====
+  function openRegChoiceModal(){
+    document.getElementById('regChoiceModal').classList.add('show');
+  }
+  function closeRegChoiceModal(){
+    document.getElementById('regChoiceModal').classList.remove('show');
+  }
+
+  // ===== Modal pilihan jenis cek status (Cek status pendaftaran) =====
+  function openCsChoiceModal(){
+    document.getElementById('csChoiceModal').classList.add('show');
+  }
+  function closeCsChoiceModal(){
+    document.getElementById('csChoiceModal').classList.remove('show');
+  }
+
+  // =============================================================
+  // PUBLIC EMPLOYEE BENEFIT REGISTRATION (Tahap 2)
+  // Pola sama persis dengan PUBLIC AGENT REGISTRATION di atas.
+  // =============================================================
+  var EB_REG_DOCS = [
+    { key:'ktp',    fileId:'ebRegKTPFile',    tileId:'ebRegKTPTile',    label:'Foto KTP',              hint:'JPG, PNG atau PDF', changeHandler:'handleEbRegDocChange_' },
+    { key:'idcard', fileId:'ebRegIDCardFile', tileId:'ebRegIDCardTile', label:'Foto ID Card Karyawan', hint:'JPG, PNG atau PDF', changeHandler:'handleEbRegDocChange_' }
+  ];
+  var EB_REG_FILES = {}; // key -> {data, mimeType, name}
+
+  /** Build the 2 upload tiles fresh each time the modal is opened (keeps state simple). */
+  function initEbRegisterDocTiles(){
+    EB_REG_FILES = {};
+    var grid = document.getElementById('ebRegDocGrid');
+    if(!grid) return;
+    grid.innerHTML = EB_REG_DOCS.map(function(d){ return docTileEmptyHtml_(d); }).join('');
+  }
+
+  function handleEbRegDocChange_(key){
+    var d = EB_REG_DOCS.filter(function(x){ return x.key === key; })[0];
+    var input = document.getElementById(d.fileId);
+    if(!input.files.length) return;
+    var file = input.files[0];
+    fileToBase64_(file, function(fileObj){
+      EB_REG_FILES[key] = fileObj;
+      renderDocTilePreview_(d, file, fileObj);
+      updateEbRegFormState_();
+    });
+  }
+
+  /** Populate dropdown Perusahaan dari daftar company aktif (ebListCompaniesPublic). */
+  function loadEbRegCompanies_(){
+    var select = document.getElementById('ebRegCompanyId');
+    if(!select) return;
+    select.innerHTML = '<option value="">Memuat daftar perusahaan...</option>';
+    google.script.run.withSuccessHandler(function(list){
+      if(!select) return;
+      if(!list || !list.length){
+        select.innerHTML = '<option value="">Belum ada perusahaan terdaftar</option>';
+        return;
+      }
+      select.innerHTML = '<option value="">Pilih perusahaan...</option>' +
+        list.map(function(c){ return '<option value="'+escapeHtml(c.companyId)+'">'+escapeHtml(c.companyName)+'</option>'; }).join('');
+    }).withFailureHandler(function(){
+      if(select) select.innerHTML = '<option value="">Gagal memuat perusahaan</option>';
+    }).ebListCompaniesPublic();
+  }
+
+  function openEbRegisterModal(){
+    initEbRegisterDocTiles();
+    document.getElementById('ebRegFullName').value = '';
+    document.getElementById('ebRegEmail').value = '';
+    document.getElementById('ebRegPhone').value = '';
+    document.getElementById('ebRegIDCardNumber').value = '';
+    document.getElementById('ebRegError').style.display = 'none';
+    loadEbRegCompanies_();
+    updateEbRegFormState_();
+    document.getElementById('ebRegisterModal').classList.add('show');
+  }
+  function closeEbRegisterModal(){
+    document.getElementById('ebRegisterModal').classList.remove('show');
+  }
+
+  /** Cek semua field wajib + 2 dokumen sudah lengkap, lalu enable/disable tombol "Kirim
+      Registrasi" sesuai itu — dipanggil live tiap kali user mengetik/upload/pilih perusahaan,
+      sama seperti pola updateRegFormState_ untuk registrasi Agent. */
+  function updateEbRegFormState_(){
+    var btn = document.getElementById('ebRegSubmitBtn');
+    if(!btn) return;
+    var hasName = !!val_('ebRegFullName');
+    var hasEmail = !!val_('ebRegEmail');
+    var hasIdCard = !!val_('ebRegIDCardNumber');
+    var hasCompany = !!val_('ebRegCompanyId');
+    var hasDocs = !!(EB_REG_FILES.ktp && EB_REG_FILES.idcard);
+    btn.disabled = !(hasName && hasEmail && hasIdCard && hasCompany && hasDocs);
+  }
+
+  function showEbRegSubmitSplash_(show){
+    var el = document.getElementById('ebRegSubmitOverlay');
+    if(!el) return;
+    el.classList.toggle('show', !!show);
+  }
+
+  function openEbRegisterSuccess(message){
+    if(message) document.getElementById('ebRegSuccessMessage').textContent = message;
+    document.getElementById('ebRegSuccessOverlay').classList.add('show');
+  }
+  function closeEbRegisterSuccess(){
+    document.getElementById('ebRegSuccessOverlay').classList.remove('show');
+  }
+
+  function submitEbRegistration(){
+    var errEl = document.getElementById('ebRegError');
+    errEl.style.display = 'none';
+
+    if(!val_('ebRegFullName') || !val_('ebRegEmail') || !val_('ebRegIDCardNumber') || !val_('ebRegCompanyId')){
+      errEl.textContent = 'Lengkapi semua data diri terlebih dahulu.';
+      errEl.style.display = 'block';
+      return;
+    }
+    if(!EB_REG_FILES.ktp || !EB_REG_FILES.idcard){
+      errEl.textContent = 'Foto KTP dan Foto ID Card Karyawan wajib diupload.';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    var btn = document.getElementById('ebRegSubmitBtn');
+    btn.disabled = true; btn.textContent = 'Mengirim...';
+    showEbRegSubmitSplash_(true);
+
+    var payload = {
+      fullName: val_('ebRegFullName'), email: val_('ebRegEmail'), phone: val_('ebRegPhone'),
+      idCardNumber: val_('ebRegIDCardNumber'), companyId: val_('ebRegCompanyId'),
+      ktpFile: EB_REG_FILES.ktp, idCardFile: EB_REG_FILES.idcard
+    };
+    google.script.run.withSuccessHandler(function(res){
+      btn.disabled = false; btn.textContent = 'Kirim Registrasi';
+      showEbRegSubmitSplash_(false);
+      if(res.success){
+        closeEbRegisterModal();
+        openEbRegisterSuccess(res.message);
+      } else {
+        errEl.textContent = res.message;
+        errEl.style.display = 'block';
+      }
+    }).withFailureHandler(function(e){
+      btn.disabled = false; btn.textContent = 'Kirim Registrasi';
+      showEbRegSubmitSplash_(false);
+      errEl.textContent = 'Terjadi kesalahan: ' + (e.message || e);
+      errEl.style.display = 'block';
+    }).registerEmployeeBenefit(payload);
+  }
+
+  // =============================================================
+  // PUBLIC EMPLOYEE BENEFIT — CEK STATUS (Nomor ID Card saja)
+  // Pola sama persis dengan modal Cek Status Agent (CHECK_STATUS_IDENTITY_).
+  // =============================================================
+  var EB_CHECK_STATUS_IDENTITY_ = null; // {idCardNumber} tersimpan selama modal terbuka
+
+  function resetEbCheckStatusBody_(){
+    var body = document.getElementById('ebCheckStatusBody');
+    if(body){
+      body.innerHTML =
+        '<div class="form-group"><label>Nomor ID Card<span class="required-mark">*</span></label><input id="ebCsIDCard" type="text" placeholder="Nomor ID Card Karyawan"></div>' +
+        '<div id="ebCsError" class="form-error" style="display:none;"></div>';
+    }
+    var footer = document.querySelector('#ebCheckStatusModal .reg-footer');
+    if(footer){
+      footer.innerHTML = '<button class="btn btn-ghost" onclick="closeEbCheckStatusModal()">Tutup</button>' +
+        '<button class="btn btn-primary" id="ebCsSubmitBtn" onclick="submitEbCheckStatus_()">Cek Status</button>';
+    }
+  }
+
+  function openEbCheckStatusModal(){
+    EB_CHECK_STATUS_IDENTITY_ = null;
+    resetEbCheckStatusBody_();
+    document.getElementById('ebCheckStatusModal').classList.add('show');
+  }
+  function closeEbCheckStatusModal(){
+    document.getElementById('ebCheckStatusModal').classList.remove('show');
+    EB_CHECK_STATUS_IDENTITY_ = null;
+  }
+
+  function submitEbCheckStatus_(){
+    var idCardNumber = val_('ebCsIDCard').trim();
+    var errEl = document.getElementById('ebCsError');
+    if(!idCardNumber){
+      if(errEl){ errEl.textContent = 'Nomor ID Card wajib diisi.'; errEl.style.display = 'block'; }
+      return;
+    }
+    var btn = document.getElementById('ebCsSubmitBtn');
+    if(btn){ btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span> Memeriksa...'; }
+    google.script.run.withSuccessHandler(function(res){
+      if(btn){ btn.disabled = false; btn.textContent = 'Cek Status'; }
+      if(!res.success){
+        if(errEl){ errEl.textContent = res.message || 'Data tidak ditemukan.'; errEl.style.display = 'block'; }
+        return;
+      }
+      if(errEl) errEl.style.display = 'none';
+      EB_CHECK_STATUS_IDENTITY_ = { idCardNumber: idCardNumber };
+      renderEbCheckStatusResult_(res);
+    }).withFailureHandler(function(e){
+      if(btn){ btn.disabled = false; btn.textContent = 'Cek Status'; }
+      if(errEl){ errEl.textContent = 'Terjadi kesalahan. Coba lagi.'; errEl.style.display = 'block'; }
+    }).ebCheckStatus(idCardNumber);
+  }
+
+  function renderEbCheckStatusResult_(res){
+    var body = document.getElementById('ebCheckStatusBody');
+    var footer = document.querySelector('#ebCheckStatusModal .reg-footer');
+    if(!body) return;
+    var isRejected = res.registrationStatus === 'REJECTED';
+
+    var html = '<div class="profile-hero" style="padding:18px 20px;margin-bottom:16px;">' +
+      '<div class="profile-hero-info">' +
+        '<div class="profile-hero-name">'+escapeHtml(res.fullName||'-')+'</div>' +
+        '<div class="profile-hero-id">'+escapeHtml(res.employeeId||'-')+'</div>' +
+        '<div class="profile-hero-badges">'+statusBadge(res.registrationStatus)+'</div>' +
+      '</div>' +
+    '</div>';
+
+    if(res.registrationStatus === 'SUBMITTED' || res.registrationStatus === 'UNDER_REVIEW'){
+      html += '<p style="font-size:13px;color:var(--ag-gray-600);margin:0;">Registrasi Anda sedang direview oleh tim kami. Anda akan menerima email berisi akun login begitu disetujui.</p>';
+    } else if(res.registrationStatus === 'APPROVED'){
+      html += '<p style="font-size:13px;color:var(--ag-gray-600);margin:0;">Registrasi Anda sudah disetujui. Silakan cek email untuk info akun login, lalu masuk lewat form Login.</p>';
+    } else if(isRejected){
+      if(res.rejectionNote){
+        html += '<div style="font-size:13px;color:var(--ag-red);background:#FDECEC;padding:10px 12px;border-radius:var(--radius-sm);margin-bottom:14px;">'+escapeHtml(res.rejectionNote)+'</div>';
+      }
+      var d = res.docs || {};
+      var docs = [
+        { type:'KTP', label:'KTP', fileId:(d.KTP||{}).fileId, url:(d.KTP||{}).url },
+        { type:'IDCARD', label:'ID Card Karyawan', fileId:(d.IDCARD||{}).fileId, url:(d.IDCARD||{}).url }
+      ];
+      var docsHtml = docs.map(function(dd){
+        return docPreviewCard_(
+          { type:dd.type, label:dd.label, fileId:dd.fileId, url:dd.url, isPdf:/\.pdf($|\?)/i.test(dd.url||'') },
+          res.employeeId, null, /*editMode=*/'eb-public'
+        );
+      }).join('');
+      html += '<div class="form-hint" style="margin-bottom:8px;">Klik ikon pensil pada dokumen yang perlu diperbaiki, lalu klik "Ajukan Ulang Registrasi" di bawah.</div>' +
+        '<div class="doc-preview-grid">'+docsHtml+'</div>';
+    }
+
+    body.innerHTML = html;
+    if(footer){
+      footer.innerHTML = isRejected
+        ? '<button class="btn btn-ghost" onclick="closeEbCheckStatusModal()">Tutup</button><button class="btn btn-primary" id="ebCsResubmitBtn" onclick="submitEbPublicResubmit_()">Ajukan Ulang Registrasi</button>'
+        : '<button class="btn btn-primary" onclick="closeEbCheckStatusModal()">Tutup</button>';
+    }
+  }
+
+  /** PUBLIC (belum login): ganti dokumen registrasi Employee Benefit sendiri dari layar
+   *  "Cek Status" — identitas diverifikasi lewat Nomor ID Card yang sudah dicek sebelumnya
+   *  (tersimpan di EB_CHECK_STATUS_IDENTITY_), pola sama seperti handlePublicDocReplaceChange_
+   *  untuk Agent, hanya signature backend-nya beda (idCardNumber, bukan email+ktp). */
+  function handleEbPublicDocReplaceChange_(input, employeeId, docType, docLabel){
+    if(!input.files.length || !EB_CHECK_STATUS_IDENTITY_) return;
+    var file = input.files[0];
+    fileToBase64_(file, function(fileObj){
+      openConfirmModal({
+        title: 'Ganti Dokumen '+docLabel+'?',
+        message: 'File '+docLabel+' yang lama akan dihapus permanen dan digantikan dengan file baru ("'+file.name+'"). Setelah semua dokumen diperbaiki, klik "Ajukan Ulang Registrasi".',
+        confirmLabel: 'Ya, Ganti',
+        icon: ICONS.edit,
+        onConfirm: function(){
+          setPageLoading_(true, 'Mengganti dokumen');
+          google.script.run.withSuccessHandler(function(res){
+            setPageLoading_(false);
+            closeModal();
+            if(res.success){
+              showToast(res.message || 'Dokumen berhasil diganti.', 'success');
+              google.script.run.withSuccessHandler(function(fresh){
+                if(fresh.success) renderEbCheckStatusResult_(fresh);
+              }).ebCheckStatus(EB_CHECK_STATUS_IDENTITY_.idCardNumber);
+            } else showToast(res.message || 'Gagal mengganti dokumen.', 'error');
+          }).withFailureHandler(function(e){ setPageLoading_(false); closeModal(); handleBackendError(e); })
+            .ebPublicReplaceDocument(EB_CHECK_STATUS_IDENTITY_.idCardNumber, docType, fileObj);
+        }
+      });
+      input.value = '';
+    });
+  }
+
+  /** PUBLIC (belum login): ajukan ulang registrasi Employee Benefit dari layar "Cek Status",
+   *  setelah dokumen bermasalah diganti lewat handleEbPublicDocReplaceChange_ di atas. */
+  function submitEbPublicResubmit_(){
+    if(!EB_CHECK_STATUS_IDENTITY_) return;
+    openConfirmModal({
+      title: 'Ajukan Ulang Registrasi?',
+      message: 'Pastikan semua dokumen yang diminta perbaikan sudah diganti. Registrasi akan dikirim kembali ke Admin untuk direview ulang.',
+      confirmLabel: 'Ya, Ajukan Ulang',
+      danger: false,
+      icon: ICONS.fileDoc,
+      onConfirm: function(){
+        var btn = document.getElementById('ebCsResubmitBtn');
+        if(btn){ btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span> Mengirim...'; }
+        google.script.run.withSuccessHandler(function(res){
+          if(res.success){
+            showToast(res.message || 'Registrasi diajukan ulang.', 'success');
+            closeEbCheckStatusModal();
+          } else {
+            showToast(res.message || 'Gagal mengajukan ulang.', 'error');
+            if(btn){ btn.disabled = false; btn.textContent = 'Ajukan Ulang Registrasi'; }
+          }
+        }).withFailureHandler(function(e){
+          handleBackendError(e);
+          if(btn){ btn.disabled = false; btn.textContent = 'Ajukan Ulang Registrasi'; }
+        }).ebPublicResubmit(EB_CHECK_STATUS_IDENTITY_.idCardNumber);
+      }
+    });
   }
 
   function submitCheckStatus_(){
@@ -11643,11 +11951,12 @@
   }
 
   function docTileEmptyHtml_(d){
+    var handler = d.changeHandler || 'handleRegDocChange_';
     return '<div class="doc-tile" id="'+d.tileId+'">' +
       '<div class="doc-tile-icon">'+ICON_UPLOAD_DOC+'</div>' +
       '<div class="doc-tile-label">'+d.label+'</div>' +
       '<div class="doc-tile-hint">'+d.hint+'</div>' +
-      '<input type="file" id="'+d.fileId+'" accept="image/*,.pdf" onchange="handleRegDocChange_(\''+d.key+'\')">' +
+      '<input type="file" id="'+d.fileId+'" accept="image/*,.pdf" onchange="'+handler+'(\''+d.key+'\')">' +
       '</div>';
   }
 
@@ -11680,7 +11989,7 @@
       // ditaruh DI ATAS nama file (bukan gantikan) supaya keduanya kelihatan sekaligus.
       '<div class="doc-tile-label doc-tile-label-filled">'+d.label+'</div>' +
       '<div class="doc-tile-filename">'+escapeHtml(file.name)+'</div>' +
-      '<input type="file" id="'+d.fileId+'" accept="image/*,.pdf" onchange="handleRegDocChange_(\''+d.key+'\')">';
+      '<input type="file" id="'+d.fileId+'" accept="image/*,.pdf" onchange="'+(d.changeHandler||'handleRegDocChange_')+'(\''+d.key+'\')">';
     tile.onclick = function(){ document.getElementById(d.fileId).click(); };
   }
 
