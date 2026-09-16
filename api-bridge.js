@@ -43,7 +43,13 @@
   // withSuccessHandler callback function, mis: cb.__lowPriority = true; — kalau
   // kode SPA belum menandainya, semua request dianggap high-priority (aman,
   // cuma antriannya jadi kurang optimal, bukan jadi gagal).
-  var MAX_CONCURRENT_HI = 4;
+  // FIX (bagian dari perbaikan "login 2-3 device berdekatan bikin yang belakangan kena
+  // error sesi palsu"): MAX_CONCURRENT_HI diturunkan 4 -> 3. Kuota eksekusi paralel GAS
+  // dibagi ke SEMUA device yang memanggil /exec bersamaan (lihat catatan panjang di
+  // JavaScript.html/preloadAllPages_), jadi makin kecil concurrency per-device, makin
+  // kecil juga kemungkinan device itu sendirian menghabiskan kuota bersama saat beberapa
+  // device kebetulan login di waktu yang sama.
+  var MAX_CONCURRENT_HI = 3;
   var MAX_CONCURRENT_LO = 2;
 
   var hiQueue = [];
@@ -109,16 +115,31 @@
       body: JSON.stringify({ fn: job.fnName, args: job.args })
     })
       .then(function (res) {
-        // Lihat catatan lengkap FIX di dekat deklarasi bridgeGen_/__apiBridgeResetQueue__
-        // di atas: kalau tidak OK (mis. redirect ke halaman login Google karena sesi lama
-        // sudah tidak valid saat request ini akhirnya pulang), response-nya HTML — bukan
-        // JSON — dan res.json() akan gagal parse dengan pesan mentah yang membingungkan
-        // user ("Unexpected token '<'..."). Deteksi lewat res.ok/content-type SEBELUM
-        // mencoba parse, supaya kasus ini dilempar sebagai error yang jelas maksudnya,
-        // bukan pesan parsing JSON yang teknis.
+        // FIX BUG NYATA ("login 2-3 akun/device berdekatan, yang belakangan selalu kena
+        // 'Sesi kedaluwarsa'" — padahal sesinya baru saja dibuat, belum expired sama sekali):
+        // GAS Web App (/exec) membagi kuota EKSEKUSI PARALEL ke SEMUA pemanggil dari device
+        // manapun (lihat catatan panjang soal ini di JavaScript.html, preloadAllPages_). Saat
+        // kuota itu penuh sesaat (mis. 3 device baru login nyaris bersamaan, tiap device
+        // langsung menembak beberapa request preload), GAS bisa membalas dengan status
+        // non-200 atau (lebih sering) HALAMAN HTML GENERIK (bukan JSON) — respons SEMENTARA
+        // ini SEBELUMNYA langsung divonis "Sesi kedaluwarsa" tanpa dicoba ulang dulu, padahal
+        // sesi di CacheService backend masih valid & tidak tersentuh sama sekali; besar
+        // kemungkinan request yang SAMA akan berhasil kalau dicoba lagi sesaat kemudian
+        // setelah kuota longgar. FIX: retry otomatis (dgn jeda + sedikit acak/jitter supaya
+        // beberapa device yang retry bersamaan tidak kembali bertabrakan di waktu yang persis
+        // sama) sebelum benar-benar melaporkan gagal — pola sama dgn retry TypeError di bawah,
+        // cuma sumber kegagalannya beda (di sini GAS SEMPAT membalas, cuma bukan JSON/tidak OK).
         var ct = res.headers.get('content-type') || '';
         if (!res.ok || ct.indexOf('json') === -1) {
-          throw new Error('Sesi kedaluwarsa atau server tidak merespons dengan benar. Coba login ulang.');
+          if (!isRetry) {
+            var err = new Error('__RETRY_BAD_RESPONSE__');
+            err.__badResponse = true;
+            throw err;
+          }
+          // Sudah pernah dicoba ulang sekali dan tetap gagal — kemungkinan besar problem
+          // sungguhan (server benar-benar down, atau memang sesinya sudah tidak valid di sisi
+          // lain). Pesan diperjelas: ini BUKAN kepastian sesi habis, cuma dugaan terbaik.
+          throw new Error('Gagal terhubung ke server (server sibuk atau sesi tidak valid). Coba beberapa saat lagi atau login ulang.');
         }
         return res.json();
       })
@@ -139,6 +160,15 @@
         }
       })
       .catch(function (err) {
+        // Retry utk respons non-JSON/non-OK dari GAS (kuota paralel penuh sesaat) — lihat
+        // catatan lengkap di blok res.ok/content-type di atas. Jeda diberi jitter acak supaya
+        // beberapa device yang sama-sama retry tidak kembali menembak GAS di detik yang
+        // persis sama (yang justru bisa memperpanjang kepenuhan kuota, bukan meredakannya).
+        if (!isRetry && err && err.__badResponse) {
+          var backoff = 900 + Math.floor(Math.random() * 700); // ~0.9–1.6 detik
+          setTimeout(function () { runJob_(job, done, true); }, backoff);
+          return;
+        }
         // FIX BUG NYATA ("Failed to fetch" sesaat di HP, terutama tepat setelah PWA baru
         // dibuka/koneksi baru pulih dari idle): error jaringan MURNI (bukan balasan dari
         // GAS — GAS bahkan belum sempat dihubungi sama sekali) muncul sebagai TypeError
