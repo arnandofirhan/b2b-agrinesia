@@ -3749,26 +3749,86 @@
   .eb-doc-tile svg{width:22px;height:22px;}
   .eb-doc-tile span{font-size:12px;font-weight:700;}
 
-  /* ---- Store: Scan Barcode page ---- */
+  /* ---- Store: Scan Barcode page (redesign) ---- */
   .eb-scan-page{display:flex;justify-content:center;padding:8px 0;}
-  .eb-scan-card{max-width:420px;width:100%;}
+  .eb-scan-card{
+    max-width:440px;width:100%;background:#fff;border:1px solid var(--ag-gray-200);border-radius:22px;
+    padding:20px;box-shadow:0 8px 28px rgba(15,45,30,.06);
+  }
+  .eb-scan-header{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+  .eb-scan-header-icon{
+    width:42px;height:42px;border-radius:13px;background:var(--ag-green-soft);color:var(--ag-green);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  }
+  .eb-scan-header-icon svg{width:22px;height:22px;}
+  .eb-scan-title{font-size:15px;font-weight:800;color:var(--ag-gray-900,#1a1a1a);line-height:1.3;}
+  .eb-scan-subtitle{font-size:12px;color:var(--ag-gray-500,#666);margin-top:2px;line-height:1.4;}
+
   .eb-scan-viewport{
-    position:relative;width:100%;aspect-ratio:1/1;border-radius:18px;overflow:hidden;
-    background:#0B1F17;display:flex;align-items:center;justify-content:center;
+    position:relative;width:100%;aspect-ratio:1/1;border-radius:20px;overflow:hidden;
+    background:radial-gradient(circle at 50% 40%,#0f2b1e,#08150f 78%);
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);
   }
   .eb-scan-viewport video{width:100%;height:100%;object-fit:cover;}
-  .eb-scan-frame{
-    position:absolute;top:12%;left:12%;right:12%;bottom:12%;
-    border:3px solid rgba(255,255,255,.55);border-radius:20px;
-    transition:border-color .25s ease,box-shadow .25s ease;pointer-events:none;
+
+  .eb-scan-idle{
+    position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:10px;color:rgba(255,255,255,.55);pointer-events:none;
   }
-  .eb-scan-frame.eb-scan-frame-success{border-color:#2ECC71;box-shadow:0 0 0 4px rgba(46,204,113,.28);}
-  .eb-scan-frame.eb-scan-frame-error{border-color:#EB5757;box-shadow:0 0 0 4px rgba(235,87,87,.28);}
+  .eb-scan-idle-icon{
+    width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.08);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .eb-scan-idle-icon svg{width:26px;height:26px;}
+  .eb-scan-idle-text{font-size:12.5px;font-weight:600;}
+
+  .eb-scan-frame{
+    position:absolute;top:14%;left:14%;right:14%;bottom:14%;
+    border-radius:24px;pointer-events:none;overflow:hidden;
+  }
+  .eb-scan-corner{
+    position:absolute;width:26px;height:26px;border:3px solid rgba(255,255,255,.85);
+    transition:border-color .25s ease;
+  }
+  .eb-scan-corner-tl{top:0;left:0;border-right:none;border-bottom:none;border-top-left-radius:16px;}
+  .eb-scan-corner-tr{top:0;right:0;border-left:none;border-bottom:none;border-top-right-radius:16px;}
+  .eb-scan-corner-bl{bottom:0;left:0;border-right:none;border-top:none;border-bottom-left-radius:16px;}
+  .eb-scan-corner-br{bottom:0;right:0;border-left:none;border-top:none;border-bottom-right-radius:16px;}
+  .eb-scan-frame.eb-scan-frame-success .eb-scan-corner{border-color:#2ECC71;}
+  .eb-scan-frame.eb-scan-frame-error .eb-scan-corner{border-color:#EB5757;}
+  .eb-scan-laser{
+    position:absolute;left:6%;right:6%;top:0;height:2px;border-radius:2px;
+    background:linear-gradient(90deg,rgba(46,204,113,0),rgba(46,204,113,.95),rgba(46,204,113,0));
+    box-shadow:0 0 8px 1px rgba(46,204,113,.7);
+    animation:ebScanLaserMove 2.1s ease-in-out infinite;
+  }
+  @keyframes ebScanLaserMove{
+    0%{top:6%;opacity:.9;} 50%{top:92%;opacity:.9;} 51%{opacity:0;} 52%{top:6%;} 100%{top:6%;opacity:.9;}
+  }
+
   .eb-scan-hint{
     position:absolute;bottom:14px;left:50%;transform:translateX(-50%);
-    background:rgba(0,0,0,.55);color:#fff;font-size:12px;font-weight:600;padding:7px 16px;border-radius:999px;
-    white-space:nowrap;pointer-events:none;
+    background:rgba(0,0,0,.6);backdrop-filter:blur(2px);color:#fff;font-size:12px;font-weight:600;
+    padding:7px 16px;border-radius:999px;white-space:nowrap;pointer-events:none;
+    transition:background .2s ease,color .2s ease;
   }
+  .eb-scan-hint.eb-scan-hint-success{background:rgba(46,204,113,.9);}
+  .eb-scan-hint.eb-scan-hint-error{background:rgba(235,87,87,.92);}
+
+  .eb-scan-switch-btn{
+    position:absolute;top:12px;right:12px;width:36px;height:36px;border-radius:50%;
+    background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.2);color:#fff;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;
+  }
+  .eb-scan-switch-btn svg{width:17px;height:17px;}
+  .eb-scan-switch-btn:hover{background:rgba(0,0,0,.65);}
+
+  .eb-scan-start-btn{
+    width:100%;margin-top:14px;display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+  .eb-scan-start-btn svg{width:18px;height:18px;}
+  .eb-scan-start-btn:disabled{opacity:.7;cursor:default;}
 
   .eb-trx-emp-banner{
     display:flex;align-items:center;gap:12px;padding:14px;border-radius:14px;background:var(--ag-green-soft);
@@ -4837,37 +4897,50 @@
   // berisi Data Diri + tombol Ganti Password sendiri — lihat renderAgentSelfCard), TANPA
   // membuka dropdown. Di desktop (>860px) SELALU pakai dropdown lama apa pun rolenya —
   // layar desktop tidak diminta berubah sama sekali.
+  // Role yang topbar mobile-nya memakai layout "compact" ala Agent (avatar+nama+ID
+  // digeser ke kiri, dropdown Ganti Password/Keluar diganti tombol Keluar berdiri sendiri
+  // + klik avatar langsung buka halaman Profil). Value-nya = key halaman Profil masing2
+  // role. Dulu ini HANYA berlaku utk role AGENT (hardcoded); role EMPLOYEE disamakan ke
+  // gaya ini juga atas permintaan (lihat renderStoreScan/eb-profile) — cukup tambah
+  // barisnya di sini kalau nanti ada role lain yang mau disamakan juga.
+  var TOPBAR_COMPACT_PROFILE_PAGE_ = { AGENT: 'agents', EMPLOYEE: 'eb-profile' };
+
   function handleUserTriggerClick_(e){
     var isMobileViewport = window.matchMedia('(max-width:860px)').matches;
-    if(isMobileViewport && STATE.user && STATE.user.role === 'AGENT'){
+    var profilePage = STATE.user && TOPBAR_COMPACT_PROFILE_PAGE_[STATE.user.role];
+    if(isMobileViewport && profilePage){
       if(e) e.stopPropagation();
-      showPage('agents');
+      showPage(profilePage);
       return;
     }
     toggleUserMenu(e);
   }
 
-  // Susun ulang topbar KHUSUS role AGENT DAN KHUSUS mobile: dropdown avatar (Ganti
-  // Password/Keluar) dimatikan (caret disembunyikan, kedua aksi itu pindah ke halaman
-  // Profil Saya + tombol Keluar berdiri sendiri). Flag ini disetel berdasarkan role SAJA;
-  // pembatasan "hanya mobile" dilakukan lewat CSS (@media min-width:861px di akhir
-  // Stylesheet.html memaksa kembali ke tampilan dropdown desktop) supaya resize/rotate
-  // layar langsung menyesuaikan tanpa perlu listener resize tambahan di sini. Dipanggil
-  // sekali dari bootApp() setelah role diketahui.
+  // Susun ulang topbar KHUSUS role AGENT/EMPLOYEE (lihat TOPBAR_COMPACT_PROFILE_PAGE_)
+  // DAN KHUSUS mobile: dropdown avatar (Ganti Password/Keluar) dimatikan (caret
+  // disembunyikan, kedua aksi itu pindah ke halaman Profil + tombol Keluar berdiri
+  // sendiri). Flag ini disetel berdasarkan role SAJA; pembatasan "hanya mobile" dilakukan
+  // lewat CSS (@media min-width:861px di akhir Stylesheet.html memaksa kembali ke
+  // tampilan dropdown desktop) supaya resize/rotate layar langsung menyesuaikan tanpa
+  // perlu listener resize tambahan di sini. Dipanggil sekali dari bootApp() setelah role
+  // diketahui.
   function applyAgentTopbarLayout_(){
-    var isAgent = STATE.user && STATE.user.role === 'AGENT';
+    var isCompact = !!(STATE.user && TOPBAR_COMPACT_PROFILE_PAGE_[STATE.user.role]);
     var caret = document.getElementById('userMenuCaret');
     var logoutBtn = document.getElementById('agentStandaloneLogoutBtn');
     var trigger = document.getElementById('userMenuTrigger');
     var topbarEl = document.querySelector('.topbar');
-    if(caret) caret.style.display = isAgent ? 'none' : '';
-    if(logoutBtn) logoutBtn.style.display = isAgent ? 'flex' : 'none';
-    if(trigger) trigger.classList.toggle('is-profile-link', isAgent);
-    // "agent-topbar": geser blok avatar+nama+ID Agent ke KIRI topbar KHUSUS mobile
-    // (lihat @media max-width:860px .topbar.agent-topbar di Stylesheet.html). Disetel
-    // berdasarkan role saja; pembatasan "hanya mobile" murni lewat CSS, sama seperti
-    // pola caret/is-profile-link di atas — jadi tampilan desktop tidak berubah.
-    if(topbarEl) topbarEl.classList.toggle('agent-topbar', isAgent);
+    if(caret) caret.style.display = isCompact ? 'none' : '';
+    if(logoutBtn) logoutBtn.style.display = isCompact ? 'flex' : 'none';
+    if(trigger) trigger.classList.toggle('is-profile-link', isCompact);
+    // "agent-topbar": geser blok avatar+nama+ID ke KIRI topbar KHUSUS mobile (lihat
+    // @media max-width:860px .topbar.agent-topbar di Stylesheet.html). Nama class
+    // dipertahankan "agent-topbar" (bukan diganti "compact-topbar") supaya tidak perlu
+    // mengubah seluruh selector CSS terkait — sekarang dipakai bareng oleh role AGENT
+    // maupun EMPLOYEE. Disetel berdasarkan role saja; pembatasan "hanya mobile" murni
+    // lewat CSS, sama seperti pola caret/is-profile-link di atas — jadi tampilan desktop
+    // tidak berubah.
+    if(topbarEl) topbarEl.classList.toggle('agent-topbar', isCompact);
   }
   /** Dipakai oleh item2 dropdown user-menu (Ganti Password / Keluar) alih2 langsung
       "closeUserMenu();aksiNya()" di onclick. FIX bug: menutup dropdown (mengubah
@@ -5230,8 +5303,14 @@
     document.getElementById('userAvatar').textContent = (STATE.user.name || '?').charAt(0).toUpperCase();
     // Baris ID Agent di topbar (dipakai khusus layout mobile role AGENT — lihat
     // applyAgentTopbarLayout_ & .topbar.agent-topbar .user-agentid di Stylesheet.html).
+    // Baris ID di topbar (dipakai khusus layout mobile role AGENT & EMPLOYEE — lihat
+    // applyAgentTopbarLayout_ & .topbar.agent-topbar .user-agentid di Stylesheet.html).
+    // Role AGENT punya agentId, role EMPLOYEE punya employeeId — pakai yang tersedia.
     var agentIdLabelEl = document.getElementById('userAgentIdLabel');
-    if(agentIdLabelEl) agentIdLabelEl.textContent = STATE.user.agentId ? ('ID: ' + STATE.user.agentId) : '';
+    if(agentIdLabelEl){
+      var idValue = STATE.user.agentId || STATE.user.employeeId;
+      agentIdLabelEl.textContent = idValue ? ('ID: ' + idValue) : '';
+    }
     applyAgentTopbarLayout_();
     var pageDateEl = document.getElementById('pageDate');
     if(pageDateEl) pageDateEl.textContent = formatTanggalHariIni_();
@@ -15699,15 +15778,26 @@
   // =============================================================================
 
   // ---------- Lazy-load libs (jsQR untuk scan kamera, qrcode.js untuk generate QR) ----------
+  // FIX BUG "kamera belum bisa nyala": versi lama tidak punya script.onerror sama sekali —
+  // kalau CDN jsQR gagal dimuat (offline sesaat, diblokir extension/adblock, dll), callback
+  // ANTREAN (JSQR_CALLBACKS_) tidak pernah dipanggil DAN JSQR_LOADED_ sudah kadung true,
+  // jadi tombol "Buka Kamera" terlihat seperti tidak melakukan apa-apa selamanya (tidak ada
+  // retry, tidak ada pesan error). Sekarang: onerror mereset JSQR_LOADED_ (supaya percobaan
+  // berikutnya bisa retry re-inject script) dan memanggil tiap callback dengan flag error
+  // supaya UI bisa menampilkan pesan yang jelas alih-alih diam saja.
   var JSQR_LOADED_ = false, JSQR_CALLBACKS_ = [];
   function ensureJsQrLoaded_(callback){
-    if(typeof jsQR !== 'undefined'){ callback(); return; }
+    if(typeof jsQR !== 'undefined'){ callback(true); return; }
     JSQR_CALLBACKS_.push(callback);
     if(JSQR_LOADED_) return;
     JSQR_LOADED_ = true;
     var script = document.createElement('script');
     script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js';
-    script.onload = function(){ JSQR_CALLBACKS_.forEach(function(cb){ cb(); }); JSQR_CALLBACKS_ = []; };
+    script.onload = function(){ JSQR_CALLBACKS_.forEach(function(cb){ cb(true); }); JSQR_CALLBACKS_ = []; };
+    script.onerror = function(){
+      JSQR_LOADED_ = false; // izinkan retry di percobaan "Buka Kamera" berikutnya
+      JSQR_CALLBACKS_.forEach(function(cb){ cb(false); }); JSQR_CALLBACKS_ = [];
+    };
     document.head.appendChild(script);
   }
   var QRCODEJS_LOADED_ = false, QRCODEJS_CALLBACKS_ = [];
@@ -16211,44 +16301,128 @@
   // =============================================================================
   // ROLE STORE — SCAN BARCODE
   // =============================================================================
-  var EB_SCAN_STATE_ = { stream: null, rafId: null, scanning: false, validatedEmployee: null };
+  // EB_SCAN_STATE_.facingMode dipakai tombol "Ganti Kamera" (depan/belakang) — device
+  // dengan lebih dari 1 kamera (kebanyakan HP) bisa switch tanpa reload halaman.
+  var EB_SCAN_STATE_ = { stream: null, rafId: null, scanning: false, validatedEmployee: null, facingMode: 'environment', starting: false };
 
   function renderStoreScan(){
     var content = document.getElementById('content');
     content.innerHTML =
       '<div class="eb-scan-page">' +
-        '<div class="card eb-scan-card">' +
-          '<div class="eb-scan-viewport" id="ebScanViewport">' +
-            '<video id="ebScanVideo" playsinline muted></video>' +
-            '<canvas id="ebScanCanvas" style="display:none;"></canvas>' +
-            '<div class="eb-scan-frame" id="ebScanFrame"></div>' +
-            '<div class="eb-scan-hint" id="ebScanHint">Arahkan kamera ke QR Code karyawan</div>' +
+        '<div class="eb-scan-card">' +
+          '<div class="eb-scan-header">' +
+            '<div class="eb-scan-header-icon">'+ICONS.camera+'</div>' +
+            '<div>' +
+              '<div class="eb-scan-title">Scan QR Karyawan</div>' +
+              '<div class="eb-scan-subtitle">Verifikasi member sebelum input transaksi Corporate Benefit</div>' +
+            '</div>' +
           '</div>' +
-          '<button class="btn btn-primary" style="width:100%;margin-top:14px;" id="ebScanStartBtn" onclick="startEbScan_()">Buka Kamera</button>' +
+          '<div class="eb-scan-viewport" id="ebScanViewport">' +
+            '<video id="ebScanVideo" playsinline autoplay muted></video>' +
+            '<canvas id="ebScanCanvas" style="display:none;"></canvas>' +
+            '<div class="eb-scan-frame" id="ebScanFrame">' +
+              '<span class="eb-scan-corner eb-scan-corner-tl"></span><span class="eb-scan-corner eb-scan-corner-tr"></span>' +
+              '<span class="eb-scan-corner eb-scan-corner-bl"></span><span class="eb-scan-corner eb-scan-corner-br"></span>' +
+              '<div class="eb-scan-laser" id="ebScanLaser"></div>' +
+            '</div>' +
+            '<div class="eb-scan-hint" id="ebScanHint">Arahkan kamera ke QR Code karyawan</div>' +
+            '<button class="eb-scan-switch-btn" id="ebScanSwitchBtn" style="display:none;" onclick="switchEbScanCamera_()" title="Ganti Kamera">'+ICONS.refresh+'</button>' +
+            '<div class="eb-scan-idle" id="ebScanIdle">' +
+              '<div class="eb-scan-idle-icon">'+ICONS.camera+'</div>' +
+              '<div class="eb-scan-idle-text">Kamera belum aktif</div>' +
+            '</div>' +
+          '</div>' +
+          '<button class="btn btn-primary eb-scan-start-btn" id="ebScanStartBtn" onclick="startEbScan_()">'+ICONS.camera+'<span>Buka Kamera</span></button>' +
         '</div>' +
       '</div>';
     stopEbScan_();
   }
 
+  function setEbScanHint_(text, mode){
+    var hint = document.getElementById('ebScanHint');
+    if(!hint) return;
+    hint.textContent = text;
+    hint.classList.remove('eb-scan-hint-error','eb-scan-hint-success');
+    if(mode) hint.classList.add('eb-scan-hint-'+mode);
+  }
+
   function startEbScan_(){
+    if(EB_SCAN_STATE_.starting) return;
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      showToast('Browser ini tidak mendukung akses kamera. Gunakan Chrome/Safari terbaru & pastikan situs dibuka lewat HTTPS.', 'error');
+      return;
+    }
     var startBtn = document.getElementById('ebScanStartBtn');
-    ensureJsQrLoaded_(function(){
-      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+    var idle = document.getElementById('ebScanIdle');
+    EB_SCAN_STATE_.starting = true;
+    if(startBtn){ startBtn.disabled = true; startBtn.innerHTML = ICONS.camera+'<span>Membuka kamera...</span>'; }
+    ensureJsQrLoaded_(function(loaded){
+      if(!loaded){
+        EB_SCAN_STATE_.starting = false;
+        if(startBtn){ startBtn.disabled = false; startBtn.innerHTML = ICONS.camera+'<span>Coba Lagi</span>'; }
+        showToast('Gagal memuat pustaka pemindai QR. Periksa koneksi internet lalu coba lagi.', 'error');
+        return;
+      }
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: EB_SCAN_STATE_.facingMode } }, audio: false })
         .then(function(stream){
+          EB_SCAN_STATE_.starting = false;
           EB_SCAN_STATE_.stream = stream;
           EB_SCAN_STATE_.scanning = true;
           var video = document.getElementById('ebScanVideo');
-          if(!video) return;
+          if(!video){ stream.getTracks().forEach(function(t){ t.stop(); }); return; }
           video.srcObject = stream;
           video.setAttribute('playsinline', true);
-          video.play();
+          var playPromise = video.play();
+          if(playPromise && playPromise.catch) playPromise.catch(function(err){
+            showToast('Kamera aktif tapi video gagal diputar: ' + (err.message || err), 'error');
+          });
           if(startBtn) startBtn.style.display = 'none';
+          if(idle) idle.style.display = 'none';
+          // Tombol ganti kamera hanya relevan kalau device punya >1 kamera (mis. HP).
+          if(navigator.mediaDevices.enumerateDevices){
+            navigator.mediaDevices.enumerateDevices().then(function(devices){
+              var camCount = devices.filter(function(d){ return d.kind === 'videoinput'; }).length;
+              var switchBtn = document.getElementById('ebScanSwitchBtn');
+              if(switchBtn) switchBtn.style.display = camCount > 1 ? 'flex' : 'none';
+            }).catch(function(){});
+          }
+          setEbScanHint_('Arahkan kamera ke QR Code karyawan');
           requestAnimationFrame(ebScanTick_);
         })
         .catch(function(err){
-          showToast('Tidak bisa mengakses kamera: ' + (err.message || err), 'error');
+          EB_SCAN_STATE_.starting = false;
+          if(startBtn){ startBtn.disabled = false; startBtn.innerHTML = ICONS.camera+'<span>Buka Kamera</span>'; }
+          var name = err && err.name;
+          var msg = 'Tidak bisa mengakses kamera.';
+          if(name === 'NotAllowedError' || name === 'PermissionDeniedError'){
+            msg = 'Izin kamera ditolak. Aktifkan izin kamera untuk situs ini lewat pengaturan browser, lalu coba lagi.';
+          } else if(name === 'NotFoundError' || name === 'DevicesNotFoundError'){
+            msg = 'Tidak ada kamera yang terdeteksi di perangkat ini.';
+          } else if(name === 'NotReadableError' || name === 'TrackStartError'){
+            msg = 'Kamera sedang dipakai aplikasi lain. Tutup aplikasi lain yang menggunakan kamera lalu coba lagi.';
+          } else if(location.protocol !== 'https:' && location.hostname !== 'localhost'){
+            msg = 'Akses kamera butuh koneksi HTTPS. Buka halaman ini lewat https:// lalu coba lagi.';
+          }
+          showToast(msg, 'error');
         });
     });
+  }
+
+  function switchEbScanCamera_(){
+    EB_SCAN_STATE_.facingMode = EB_SCAN_STATE_.facingMode === 'environment' ? 'user' : 'environment';
+    stopEbScanStreamOnly_();
+    startEbScan_();
+  }
+
+  // Hentikan HANYA stream+loop, tanpa reset UI ke kondisi awal ("Buka Kamera") — dipakai
+  // saat ganti kamera supaya tombol start/idle-state tidak sempat kelihatan berkedip.
+  function stopEbScanStreamOnly_(){
+    EB_SCAN_STATE_.scanning = false;
+    if(EB_SCAN_STATE_.rafId) cancelAnimationFrame(EB_SCAN_STATE_.rafId);
+    if(EB_SCAN_STATE_.stream){
+      EB_SCAN_STATE_.stream.getTracks().forEach(function(t){ t.stop(); });
+      EB_SCAN_STATE_.stream = null;
+    }
   }
 
   function ebScanTick_(){
@@ -16275,22 +16449,23 @@
   function ebOnQrDetected_(qrPayload){
     EB_SCAN_STATE_.scanning = false;
     var frame = document.getElementById('ebScanFrame');
-    var hint = document.getElementById('ebScanHint');
+    setEbScanHint_('Memeriksa QR...');
     google.script.run
       .withSuccessHandler(function(res){
         if(!res.success){
           if(frame) frame.classList.add('eb-scan-frame-error');
-          if(hint) hint.textContent = res.message || 'QR tidak valid.';
+          setEbScanHint_(res.message || 'QR tidak valid.', 'error');
           showToast(res.message || 'QR tidak valid.', 'error');
           setTimeout(function(){
             if(frame) frame.classList.remove('eb-scan-frame-error');
-            if(hint) hint.textContent = 'Arahkan kamera ke QR Code karyawan';
+            setEbScanHint_('Arahkan kamera ke QR Code karyawan');
             EB_SCAN_STATE_.scanning = true;
             requestAnimationFrame(ebScanTick_);
           }, 1600);
           return;
         }
         if(frame) frame.classList.add('eb-scan-frame-success');
+        setEbScanHint_('QR terverifikasi!', 'success');
         EB_SCAN_STATE_.validatedEmployee = res.employee;
         showToast('QR terverifikasi!', 'success');
         setTimeout(function(){
@@ -16300,6 +16475,7 @@
       })
       .withFailureHandler(function(err){
         showToast('Gagal validasi QR: ' + (err.message || err), 'error');
+        setEbScanHint_('Arahkan kamera ke QR Code karyawan');
         EB_SCAN_STATE_.scanning = true;
         requestAnimationFrame(ebScanTick_);
       })
@@ -16308,11 +16484,18 @@
 
   function stopEbScan_(){
     EB_SCAN_STATE_.scanning = false;
+    EB_SCAN_STATE_.starting = false;
     if(EB_SCAN_STATE_.rafId) cancelAnimationFrame(EB_SCAN_STATE_.rafId);
     if(EB_SCAN_STATE_.stream){
       EB_SCAN_STATE_.stream.getTracks().forEach(function(t){ t.stop(); });
       EB_SCAN_STATE_.stream = null;
     }
+    var startBtn = document.getElementById('ebScanStartBtn');
+    if(startBtn){ startBtn.style.display = ''; startBtn.disabled = false; startBtn.innerHTML = ICONS.camera+'<span>Buka Kamera</span>'; }
+    var idle = document.getElementById('ebScanIdle');
+    if(idle) idle.style.display = 'flex';
+    var switchBtn = document.getElementById('ebScanSwitchBtn');
+    if(switchBtn) switchBtn.style.display = 'none';
   }
 
   var EB_TRX_RECEIPT_FILE_ = null;
