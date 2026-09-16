@@ -3729,9 +3729,7 @@
   .eb-qr-box{
     background:#fff;padding:14px;border-radius:16px;border:1px solid var(--ag-gray-100);
     display:flex;align-items:center;justify-content:center;min-height:220px;min-width:220px;
-    box-shadow:inset 0 0 0 1px rgba(11,61,46,.03);
   }
-  .eb-qr-box canvas{display:block;border-radius:4px;}
   .eb-qr-name{font-size:16px;font-weight:800;color:var(--ag-gray-900,#1a1a1a);margin-top:16px;text-align:center;}
   .eb-qr-sub{font-size:12.5px;color:var(--ag-gray-500,#666);margin-top:2px;text-align:center;}
   .eb-qr-idcard{
@@ -4669,7 +4667,7 @@
     { key: 'master',    label: 'Master Data',       items: ['agents','products','stores'] },
     { key: 'laporan',   label: 'Laporan & Jadwal',  items: ['reports','calendar'] },
     { key: 'sistem',    label: 'Sistem',            items: ['users','settings','dashboard-settings','audit-log'] },
-    { key: 'eb-menu',   label: 'Employee Benefit',  items: ['eb-companies','eb-employees','eb-store-users','eb-qr','eb-transactions','eb-profile','eb-scan','eb-store-transactions'] }
+    { key: 'eb-menu',   label: 'Employee Benefit',  items: ['eb-companies','eb-employees','eb-store-users','eb-qr','eb-transactions','eb-profile','eb-scan'] }
   ];
   // Which groups start expanded by default (persisted in-session via SIDEBAR_GROUP_STATE_ below).
   var SIDEBAR_GROUP_STATE_ = { transaksi: true, master: true, laporan: true, sistem: true, 'eb-menu': true };
@@ -16040,55 +16038,23 @@
             '<div class="eb-qr-logo">'+ICONS.dashboard+'</div>' +
             '<div class="eb-qr-brand">CORPORATE MEMBER</div>' +
           '</div>' +
-          '<div class="eb-qr-box" id="ebQrBox"><canvas id="ebQrCanvas"></canvas></div>' +
+          '<div class="eb-qr-box" id="ebQrBox"></div>' +
           '<div class="eb-qr-name">'+escapeHtml(res.fullName)+'</div>' +
           '<div class="eb-qr-sub">'+escapeHtml(res.companyName)+'</div>' +
           '<div class="eb-qr-idcard">ID: '+escapeHtml(res.idCardNumber)+'</div>' +
         '</div>' +
         '<div class="eb-qr-hint">Tunjukkan QR ini ke kasir saat berbelanja untuk mendapatkan potongan Corporate Benefit.</div>' +
       '</div>';
-    ebDrawQrCanvas_(res.qrPayload);
-  }
-
-  /** Render QR pakai <canvas> beresolusi tinggi (mengikuti devicePixelRatio layar) — sebelumnya
-   *  qrcode.js menggambar QR pas 220x220 CSS px tanpa memperhitungkan layar retina/HP modern
-   *  (devicePixelRatio 2-3x), jadi tiap "modul" QR ikut di-upscale blur oleh browser persis
-   *  seperti memperbesar foto kecil, dan itulah yang bikin kamera kasir susah membaca QR-nya
-   *  dari layar HP karyawan. Sekarang canvas internal digambar di 220 * devicePixelRatio px
-   *  (tajam secara fisik), lalu di-downscale balik ke 220 CSS px lewat width/height style —
-   *  hasilnya QR tetap tajam & kontras tegas di layar apa pun, jauh lebih gampang discan. */
-  function ebDrawQrCanvas_(payload){
     ensureQrCodeJsLoaded_(function(){
-      var canvas = document.getElementById('ebQrCanvas');
-      if(!canvas) return;
-      var cssSize = 220;
-      var dpr = Math.max(2, window.devicePixelRatio || 1); // minimal 2x walau layar non-retina, supaya tetap tajam saat di-zoom kamera dari jarak dekat
-      // qrcode.js butuh sebuah container DOM utk digambar sendiri (dia bikin <canvas> internal),
-      // jadi kita pakai div sementara di memori, lalu salin hasilnya ke canvas final kita dengan
-      // resolusi fisik yang sudah dikali dpr.
-      var tmp = document.createElement('div');
-      new QRCode(tmp, {
-        text: payload,
-        width: cssSize * dpr, height: cssSize * dpr,
+      var box = document.getElementById('ebQrBox');
+      if(!box) return;
+      box.innerHTML = '';
+      new QRCode(box, {
+        text: res.qrPayload,
+        width: 220, height: 220,
         colorDark: '#0B3D2E', colorLight: '#ffffff',
         correctLevel: QRCode.CorrectLevel.H
       });
-      // qrcode.js render async lewat setTimeout(0) di internalnya sebelum <canvas>/<img> siap.
-      setTimeout(function(){
-        var srcCanvas = tmp.querySelector('canvas');
-        var srcImg = tmp.querySelector('img');
-        canvas.width = cssSize * dpr;
-        canvas.height = cssSize * dpr;
-        canvas.style.width = cssSize + 'px';
-        canvas.style.height = cssSize + 'px';
-        var ctx = canvas.getContext('2d');
-        ctx.imageSmoothingEnabled = false; // modul QR harus tegas kotak-kotak, bukan di-blur halus
-        if(srcCanvas){
-          ctx.drawImage(srcCanvas, 0, 0, canvas.width, canvas.height);
-        } else if(srcImg){
-          ctx.drawImage(srcImg, 0, 0, canvas.width, canvas.height);
-        }
-      }, 30);
     });
   }
 
@@ -16554,19 +16520,7 @@
         showToast('Gagal memuat pustaka pemindai QR. Periksa koneksi internet lalu coba lagi.', 'error');
         return;
       }
-      // FIX PERFORMA TAMBAHAN: sebelumnya resolusi kamera dibiarkan default browser, yang di
-      // banyak HP modern otomatis minta 1080p/4K dari sensor (walau nanti kita downscale sendiri
-      // ke 480px sebelum decode di ebScanTick_). Meminta resolusi ideal 720p di sini mengurangi
-      // beban ENCODE video dari kamera itu sendiri (bukan cuma beban decode QR kita), sehingga
-      // preview kamera & loop scan sama-sama terasa lebih ringan tanpa mengurangi jarak/kualitas
-      // baca QR — 720p sudah jauh lebih dari cukup untuk jsQR.
-      navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: EB_SCAN_STATE_.facingMode },
-          width: { ideal: 1280 }, height: { ideal: 720 }
-        },
-        audio: false
-      })
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: EB_SCAN_STATE_.facingMode } }, audio: false })
         .then(function(stream){
           EB_SCAN_STATE_.starting = false;
           EB_SCAN_STATE_.stream = stream;
