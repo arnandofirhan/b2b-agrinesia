@@ -99,7 +99,7 @@
     }
   }
 
-  function runJob_(job, done) {
+  function runJob_(job, done, isRetry) {
     fetch(GAS_EXEC_URL, {
       method: 'POST',
       // text/plain menghindari CORS preflight OPTIONS (GAS /exec tidak
@@ -139,6 +139,22 @@
         }
       })
       .catch(function (err) {
+        // FIX BUG NYATA ("Failed to fetch" sesaat di HP, terutama tepat setelah PWA baru
+        // dibuka/koneksi baru pulih dari idle): error jaringan MURNI (bukan balasan dari
+        // GAS — GAS bahkan belum sempat dihubungi sama sekali) muncul sebagai TypeError
+        // "Failed to fetch" dari fetch() itu sendiri, BUKAN dari .then() di atas (yang
+        // menangani kasus GAS SUDAH membalas tapi isinya bukan JSON). Penyebab paling umum:
+        // koneksi radio HP belum "bangun" sepenuhnya sesaat setelah layar/app baru aktif
+        // (meski indikator sinyal sudah penuh), atau DNS lookup pertama ke domain GAS belum
+        // selesai. Request KEDUA yang dicoba tak lama sesudahnya biasanya langsung berhasil
+        // begitu koneksi benar-benar siap — makanya klik ulang manual oleh user "tiba-tiba
+        // bisa". FIX: retry OTOMATIS sekali (tidak berulang-ulang supaya tidak menutupi
+        // kegagalan asli), hanya untuk TypeError murni ini (err.message mengandung "fetch"),
+        // dengan delay singkat, sebelum benar-benar melaporkan gagal ke user.
+        if (!isRetry && err instanceof TypeError) {
+          setTimeout(function () { runJob_(job, done, true); }, 800);
+          return;
+        }
         done();
         if (job.gen !== bridgeGen_) return;
         job.onFailure(err);
