@@ -16505,6 +16505,7 @@
                 '<button class="btn btn-ghost btn-sm" onclick="reviewEbEmployeePrompt(\''+r.EmployeeID+'\',\'REJECT\')">Reject</button> ';
       }
       html += '<button class="action-btn view" title="Lihat" onclick="viewEbEmployee_(\''+r.EmployeeID+'\')">'+ICONS.view+'</button>';
+      if(canManage) html += '<button class="action-btn edit" title="Edit" onclick="editEbEmployee_(\''+r.EmployeeID+'\')">'+ICONS.edit+'</button>';
       if(canManage && r.RegistrationStatus === 'APPROVED'){
         html += '<button class="action-btn doc" title="Kirim Ulang Kredensial" onclick="resendEbEmployeeCredentialsConfirm_(\''+r.EmployeeID+'\',\''+escapeHtml(r.FullName||'').replace(/'/g,"\\'")+'\')">'+ICONS.mail+'</button>';
         if(String(r.EmployeeStatus).toUpperCase() === 'INACTIVE'){
@@ -16524,9 +16525,14 @@
         ICONS.users) + '</div>';
   }
 
+  /** Rapi ala viewAgent(): head avatar + badge, grid data diri, dokumen sebagai card
+   *  thumbnail (docPreviewCard_) yang bisa di-zoom lewat openDocLightbox — read-only
+   *  (tanpa tombol ganti dokumen, karena belum ada endpoint ganti-dokumen sisi Admin
+   *  untuk Employee Benefit; kalau perlu nanti, tambahkan mirror handleDocReplaceChange_). */
   function viewEbEmployee_(employeeId){
     var e = findEbEmployee_(employeeId);
     if(!e){ showToast('Data tidak ditemukan.','error'); return; }
+
     var head =
       '<div class="agent-detail-head">' +
         '<div class="agent-detail-avatar">'+ICONS.users+'</div>' +
@@ -16536,30 +16542,62 @@
           '<div class="agent-detail-badges">' + ebStatusBadge_(e.RegistrationStatus) + ebStatusBadge_(e.EmployeeStatus) + '</div>' +
         '</div>' +
       '</div>';
+
     var infoGrid =
       '<div class="agent-detail-section-title">Data Diri</div>' +
       '<div class="agent-detail-grid">' +
-        detailField_('Email', escapeHtml(e.Email || '-')) +
-        detailField_('No. Telepon', escapeHtml(e.Phone || '-')) +
-        detailField_('No. ID Card', escapeHtml(e.IDCardNumber || '-')) +
-        detailField_('Perusahaan', escapeHtml(e.CompanyName || '-')) +
-      '</div>';
-    var docsGrid =
-      '<div class="agent-detail-section-title">Dokumen</div>' +
-      '<div class="agent-detail-grid">' +
-        detailField_('Foto KTP', e.KTPFileURL ? '<a href="'+escapeHtml(e.KTPFileURL)+'" target="_blank">Lihat Dokumen</a>' : '-') +
-        detailField_('Foto ID Card Karyawan', e.IDCardFileURL ? '<a href="'+escapeHtml(e.IDCardFileURL)+'" target="_blank">Lihat Dokumen</a>' : '-') +
-      '</div>';
-    var rejectionHtml = e.RejectionNote
-      ? '<div class="agent-detail-section-title">Catatan Penolakan</div>' +
+        detailField_('Email', escapeHtml(e.Email)) +
+        detailField_('No. Telepon', escapeHtml(e.Phone)) +
+        detailField_('No. ID Card', escapeHtml(e.IDCardNumber)) +
+        detailField_('Perusahaan', escapeHtml(e.CompanyName)) +
+      '</div>' +
+      (e.RejectionNote ?
+        '<div class="agent-detail-section-title">Catatan Penolakan</div>' +
         '<div style="font-size:13px;color:var(--ag-red);background:#FDECEC;padding:10px 12px;border-radius:var(--radius-sm);">'+escapeHtml(e.RejectionNote)+'</div>'
-      : '';
-    openModal(
-      '<div class="modal-header"><span class="modal-title">Detail Karyawan</span>' +
-      '<button class="modal-close" onclick="closeModal()">'+CLOSE_ICON+'</button></div>' +
-      '<div class="modal-body">'+head+infoGrid+docsGrid+rejectionHtml+'</div>' +
-      '<div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Tutup</button></div>'
-    );
+        : '');
+
+    var docs = [
+      { label:'Foto KTP', fileId:e.KTPFileID, url:e.KTPFileURL },
+      { label:'Foto ID Card Karyawan', fileId:e.IDCardFileID, url:e.IDCardFileURL }
+    ].filter(function(d){ return !!d.url; });
+
+    var docsHtml = '<div class="agent-detail-section-title">Dokumen</div>';
+    if(!docs.length){
+      docsHtml += '<div class="doc-preview-empty">Belum ada dokumen diunggah</div>';
+    } else {
+      docsHtml += '<div class="doc-preview-grid">' + docs.map(function(d){ return docPreviewCard_(d, null); }).join('') + '</div>';
+    }
+
+    var html = head + infoGrid + docsHtml;
+    openViewModal('Detail Karyawan', html);
+  }
+
+  /** Mirror editAgent()/saveAgentForm(): ubah Nama/Email/Telepon lewat ebUpdateEmployee
+   *  di backend. No. ID Card & Perusahaan sengaja tidak diedit di sini (identitas inti). */
+  function editEbEmployee_(employeeId){
+    var e = findEbEmployee_(employeeId);
+    if(!e){ showToast('Data tidak ditemukan.','error'); return; }
+    var body =
+      formField_('ebEmpFullName','Nama Lengkap', e.FullName, 'text', '', false, ICONS.users) +
+      formField_('ebEmpEmail','Email', e.Email, 'email', '', false, ICONS.mail) +
+      '<p style="font-size:11.5px;color:var(--ag-gray-600);margin:-10px 0 16px;">Mengubah email juga akan memperbarui email login karyawan (jika sudah punya akun).</p>' +
+      formField_('ebEmpPhone','No. Telepon', e.Phone, 'text', '', false, ICONS.phone) +
+      '<div class="form-group"><label>No. ID Card</label><div class="text-field-wrap" style="background:var(--ag-gray-50);">'+ICONS.fileDoc+'<input type="text" value="'+escapeHtml(e.IDCardNumber||'')+'" disabled style="background:transparent;color:var(--ag-gray-400);"></div><p style="font-size:11.5px;color:var(--ag-gray-600);margin:6px 0 0;">No. ID Card tidak bisa diubah dari sini.</p></div>' +
+      '<div class="form-group"><label>Perusahaan</label><div class="text-field-wrap" style="background:var(--ag-gray-50);">'+ICONS.stores+'<input type="text" value="'+escapeHtml(e.CompanyName||'')+'" disabled style="background:transparent;color:var(--ag-gray-400);"></div></div>';
+    openFormModal('Edit Karyawan', body, function(){ saveEbEmployeeForm_(employeeId); });
+  }
+
+  function saveEbEmployeeForm_(employeeId){
+    var fields = {
+      FullName: val_('ebEmpFullName'),
+      Email: val_('ebEmpEmail'),
+      Phone: val_('ebEmpPhone')
+    };
+    if(!fields.FullName){ showToast('Nama lengkap wajib diisi.','error'); return; }
+    google.script.run.withSuccessHandler(function(res){
+      if(res.success){ closeModal(); showToast(res.message || 'Data karyawan diperbarui.','success'); renderEbEmployees(); }
+      else showToast(res.message || 'Gagal menyimpan.','error');
+    }).withFailureHandler(function(e){ handleBackendError(e); }).ebUpdateEmployee(STATE.token, employeeId, fields);
   }
 
   /** decision: 'APPROVE' | 'REJECT' — mirror reviewAgentPrompt/doReviewAgent_. Approve
