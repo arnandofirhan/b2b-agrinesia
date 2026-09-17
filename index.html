@@ -5312,6 +5312,16 @@
       google.script.run.withSuccessHandler(function(){}).withFailureHandler(function(){}).ping();
       window.__BG_LOW_PRIORITY__ = false;
     }catch(e){}
+    // FIX BUG NYATA ("dropdown Area Pendaftaran lama banget muat pas modal Registrasi Agent
+    // dibuka"): SEBELUMNYA loadRegAreaOptions_() baru menembak listAgentAreasPublic() PAS
+    // modal dibuka — jadi user harus nunggu round-trip penuh ke server persis di momen itu,
+    // ditambah lagi kalau ini request PERTAMA setelah halaman baru dimuat (giliran ping() di
+    // atas belum tentu selesai duluan / server masih "dingin"). FIX: prefetch diam-diam di
+    // sini juga, sedini mungkin saat boot (elemen #regArea sudah ada di DOM sejak awal,
+    // cuma modalnya yang masih disembunyikan) — hasilnya ditaruh di REG_AREAS_CACHE_ yang
+    // sama dipakai loadRegAreaOptions_(), jadi begitu user benar-benar buka modal Registrasi,
+    // fungsi itu langsung kena cache-hit dan render instan, tidak nunggu apa-apa lagi.
+    try{ loadRegAreaOptions_(); }catch(e){}
     // "Ingat saya" HANYA mengingat alamat email (bukan password — menyimpan password mentah
     // di browser tidak aman) di localStorage supaya form login sudah terisi otomatis di
     // kunjungan berikutnya, termasuk setelah logout. Kalau checkbox tidak dicentang saat
