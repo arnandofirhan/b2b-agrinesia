@@ -4047,6 +4047,16 @@
           <div class="field-hint" id="regKTPHint">0/16 digit</div>
         </div>
         <div class="form-group"><label>Alamat sesuai KTP<span class="required-mark">*</span></label><textarea id="regAddress" rows="2" placeholder="Alamat lengkap" oninput="updateRegFormState_()"></textarea></div>
+        <div class="form-group">
+          <label>Area Pendaftaran<span class="required-mark">*</span></label>
+          <div class="input-with-icon">
+            <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+            <select id="regArea" onchange="updateRegFormState_()">
+              <option value="">Memuat daftar area...</option>
+            </select>
+          </div>
+          <div class="field-hint">Area asal Anda mendaftar — untuk keperluan pemantauan internal, tidak membatasi tempat Anda order.</div>
+        </div>
 
         <div class="reg-section-title"><span class="reg-section-num">2</span> <span>Upload Dokumen<span class="required-mark">*</span></span></div>
         <div class="doc-grid" id="regDocGrid">
@@ -4660,6 +4670,7 @@
   var MENU_ITEMS = [
     { key: 'dashboard',   icon: ICONS.dashboard, label: 'Dashboard',        roles: ['ADMIN','AGENT','SUPERVISOR','MANAGER','EMPLOYEE','STORE'] },
     { key: 'agents',      icon: ICONS.agent,     label: 'Agent',            roles: ['ADMIN','AGENT','SUPERVISOR','MANAGER'] },
+    { key: 'agent-areas', icon: ICONS.location,  label: 'Area Pendaftaran', roles: ['ADMIN','SUPERVISOR','MANAGER'] },
     { key: 'products',    icon: ICONS.products,  label: 'Master Item Product', roles: ['ADMIN','MANAGER'] },
     { key: 'catalog',     icon: ICONS.products,  label: 'Katalog',          roles: ['AGENT','SUPERVISOR'] },
     { key: 'promo',       icon: ICONS.promo,     label: 'Promo',            roles: ['ADMIN','AGENT','SUPERVISOR','MANAGER'] },
@@ -4702,7 +4713,7 @@
   var MENU_GROUPS = [
     { key: '__top__',   label: null,               items: ['dashboard'] }, // ungrouped, always visible, no header
     { key: 'transaksi', label: 'Transaksi',         items: ['catalog','promo','livechat','transactions','orders','commission','commission-scheme'] },
-    { key: 'master',    label: 'Master Data',       items: ['agents','products','stores'] },
+    { key: 'master',    label: 'Master Data',       items: ['agents','agent-areas','products','stores'] },
     { key: 'laporan',   label: 'Laporan & Jadwal',  items: ['reports','calendar'] },
     { key: 'sistem',    label: 'Sistem',            items: ['users','settings','dashboard-settings','audit-log'] },
     { key: 'eb-menu',   label: 'Employee Benefit',  items: ['eb-companies','eb-employees','eb-store-users','eb-qr','eb-transactions','eb-profile','eb-scan','eb-store-transactions'] }
@@ -4711,7 +4722,7 @@
   var SIDEBAR_GROUP_STATE_ = { transaksi: true, master: true, laporan: true, sistem: true, 'eb-menu': true };
 
   var PAGE_TITLES = {
-    dashboard: 'Dashboard', agents: 'Agent', products: 'Master Item Product',
+    dashboard: 'Dashboard', agents: 'Agent', 'agent-areas': 'Area Pendaftaran', products: 'Master Item Product',
     catalog: 'Katalog Produk',
     promo: 'Promo', livechat: 'Live Chat', transactions: 'Transaksi / PO', orders: 'Order',
     commission: 'Commission', 'commission-scheme': 'Skema Komisi',
@@ -6101,6 +6112,7 @@
       switch(pageKey){
         case 'dashboard': return renderDashboard();
         case 'agents': return renderAgents();
+        case 'agent-areas': return renderAgentAreas();
         case 'products': return renderProducts();
         case 'catalog': return renderCatalog();
         case 'promo': return renderPromos();
@@ -6760,6 +6772,10 @@
   // =============================================================
   var AGENTS_CACHE = [];
   var FILTER_STATE_AGENTS_ = { q:'', registrationStatus:'__ALL__', mouStatus:'__ALL__', agentStatus:'__ALL__' };
+  // Cache ringan daftar Area Pendaftaran (dipakai dropdown koreksi area di form Edit Agent
+  // & di modul Area Pendaftaran sendiri) — di-refresh tiap kali modul Area Pendaftaran
+  // dibuka/disimpan, jadi cukup akurat tanpa perlu tembak backend tiap buka form Edit Agent.
+  var AGENT_AREAS_CACHE_ = null;
 
   function onFilterChangeAgents_(key, val){
     if(key === '__RESET__'){ FILTER_STATE_AGENTS_ = { q:'', registrationStatus:'__ALL__', mouStatus:'__ALL__', agentStatus:'__ALL__' }; }
@@ -6795,6 +6811,7 @@
         var short = addr.length > 24 ? escapeHtml(addr.slice(0,24))+'…' : escapeHtml(addr);
         return '<span title="'+escapeHtml(addr)+'">'+short+'</span>';
       }},
+      {label:'Area Daftar', render:function(r){ return r.RegistrationArea ? '<span class="badge badge-neutral">'+escapeHtml(r.RegistrationArea)+'</span>' : '-'; }},
       {label:'Registrasi', render:function(r){return statusBadge(r.RegistrationStatus);}},
       {label:'MOU', render:function(r){
         var b = statusBadge(r.MOUStatus);
@@ -7101,6 +7118,10 @@
         detailField_('Telepon / WhatsApp', escapeHtml(a.Phone)) +
         detailField_('Nomor KTP', escapeHtml(a.KTPNumber)) +
         detailField_('Alamat KTP', escapeHtml(a.AddressKTP)) +
+        // Area Pendaftaran: HANYA muncul di sini (view Admin/Supervisor/Manager) — TIDAK
+        // pernah dirender di renderAgentSelfCard (Profil Saya milik Agent sendiri), dan
+        // backend getAgentDetail() juga sudah menyaring field ini keluar untuk sesi AGENT.
+        detailField_('Area Pendaftaran', a.RegistrationArea ? escapeHtml(a.RegistrationArea) : '<span style="color:var(--ag-gray-400);">Belum diketahui</span>') +
       '</div>' +
       (a.RejectionNote ?
         '<div class="agent-detail-section-title">Catatan Penolakan</div>' +
@@ -7903,19 +7924,58 @@
       '<div class="form-group"><label>Alamat sesuai KTP</label><div class="text-field-wrap text-field-wrap--textarea">'+ICONS.location+
         '<textarea id="agAddress" rows="2">'+escapeHtml(a.AddressKTP||'')+'</textarea>' +
       '</div></div>';
+    var areaField =
+      '<div class="form-group"><label>Area Pendaftaran</label><div class="text-field-wrap">'+ICONS.location+
+        '<select id="agRegArea"><option value="">Memuat area...</option></select>' +
+      '</div><p style="font-size:11.5px;color:var(--ag-gray-600);margin:6px 0 0;">Hanya terlihat oleh Admin/Supervisor/Manager — dipakai untuk memantau asal pendaftaran Agent, tidak mempengaruhi Store tempat Agent order.</p></div>';
     var body =
       formField_('agFullName','Nama Lengkap',a.FullName,'text','',false,ICONS.agent) +
       emailField +
       formField_('agPhone','No. Telepon / WhatsApp',a.Phone,'text','',false,ICONS.phone) +
       ktpField +
-      addressField;
+      addressField +
+      areaField;
     openFormModal('Edit Agent', body, function(){ saveAgentForm(agentId); });
+    loadAgentAreaOptionsForEdit_(a.RegistrationArea || '');
+  }
+
+  /** Isi dropdown "Area Pendaftaran" di form Edit Agent — pakai cache in-tab kalau ada
+   *  (AGENT_AREAS_CACHE_), kalau belum ambil dari backend (daftar lengkap termasuk INACTIVE,
+   *  supaya area lama yang sudah dinonaktifkan tetap kelihatan untuk agent yang masih
+   *  memakainya). Dipisah dari saveAgentArea/loadAgentAreas_ di modul "Area Pendaftaran"
+   *  supaya kedua modul tetap independen. */
+  function loadAgentAreaOptionsForEdit_(currentAreaName){
+    if(AGENT_AREAS_CACHE_){ renderAgentAreaOptionsForEdit_(AGENT_AREAS_CACHE_, currentAreaName); return; }
+    google.script.run.withSuccessHandler(function(rows){
+      AGENT_AREAS_CACHE_ = rows || [];
+      renderAgentAreaOptionsForEdit_(AGENT_AREAS_CACHE_, currentAreaName);
+    }).withFailureHandler(function(){
+      var sel = document.getElementById('agRegArea');
+      if(sel) sel.innerHTML = '<option value="">Gagal memuat area</option>';
+    }).listAgentAreas(STATE.token);
+  }
+
+  function renderAgentAreaOptionsForEdit_(rows, currentAreaName){
+    var sel = document.getElementById('agRegArea');
+    if(!sel) return;
+    var names = rows.map(function(r){ return r.AreaName; });
+    // Kalau area saat ini sudah dinonaktifkan/dihapus dari master, tetap tampilkan sebagai
+    // pilihan (ditandai) supaya tidak "hilang begitu saja" dari tampilan sampai Admin sengaja
+    // menggantinya.
+    var extra = (currentAreaName && names.indexOf(currentAreaName) === -1)
+      ? '<option value="'+escapeHtml(currentAreaName)+'" selected>'+escapeHtml(currentAreaName)+' (nonaktif/dihapus)</option>' : '';
+    sel.innerHTML = '<option value="">- Belum ditentukan -</option>' + extra +
+      rows.map(function(r){
+        var label = escapeHtml(r.AreaName) + (r.Status === 'INACTIVE' ? ' (nonaktif)' : '');
+        return '<option value="'+escapeHtml(r.AreaName)+'"'+(r.AreaName===currentAreaName?' selected':'')+'>'+label+'</option>';
+      }).join('');
   }
 
   function saveAgentForm(agentId){
     var fields = {
       FullName: val_('agFullName'), Phone: val_('agPhone'),
-      KTPNumber: val_('agKTPNumber'), AddressKTP: val_('agAddress')
+      KTPNumber: val_('agKTPNumber'), AddressKTP: val_('agAddress'),
+      RegistrationArea: val_('agRegArea')
     };
     if(document.getElementById('agEmail')) fields.Email = val_('agEmail');
     if(!fields.FullName){ showToast('Nama lengkap wajib diisi.','error'); return; }
@@ -7972,6 +8032,121 @@
           if(res.success){ showToast('Agent diaktifkan kembali.','success'); renderAgents(); }
           else showToast(res.message||'Gagal mengaktifkan.','error');
         }).withFailureHandler(function(e){ setPageLoading_(false); handleBackendError(e); }).activateAgent(STATE.token, agentId);
+      }
+    });
+  }
+
+  // =============================================================
+  // MODULE: AREA PENDAFTARAN (Admin/Supervisor/Manager)
+  // Kelola daftar area pendaftaran untuk dropdown "Area Pendaftaran" di form
+  // Registrasi Agent (public) — dipakai untuk memantau agent itu daftar dari
+  // area mana. Tambah/Edit/Hapus terbuka untuk ADMIN, SUPERVISOR & MANAGER,
+  // sama seperti pola Master Company di modul Employee Benefit.
+  // =============================================================
+  var FILTER_STATE_AGENT_AREAS_ = { q:'', status:'__ALL__' };
+
+  function renderAgentAreas(){
+    google.script.run
+      .withSuccessHandler(function(rows){
+        AGENT_AREAS_CACHE_ = rows || [];
+        paintPage_('agent-areas', agentAreasPageHtml_());
+      })
+      .withFailureHandler(function(e){ handleBackendError(e, pageErrorEl_('agent-areas')); })
+      .listAgentAreas(STATE.token);
+  }
+
+  function onFilterChangeAgentAreas_(key, val){
+    if(key === '__RESET__'){ FILTER_STATE_AGENT_AREAS_ = { q:'', status:'__ALL__' }; }
+    else { FILTER_STATE_AGENT_AREAS_[key] = val; }
+    paintPage_('agent-areas', agentAreasPageHtml_());
+  }
+
+  function agentAreasPageHtml_(){
+    var rows = AGENT_AREAS_CACHE_ || [];
+    var fieldConfigs = [
+      {key:'status', label:'Status', options:uniqueOptions_(rows,'Status'), match:function(r,v){return r.Status===v;}}
+    ];
+    var filtered = applyListFilters_(rows, FILTER_STATE_AGENT_AREAS_, ['AreaID','AreaName'], fieldConfigs);
+    var filterHtml = filterBarHtml_('onFilterChangeAgentAreas_', 'Cari nama area...', fieldConfigs, FILTER_STATE_AGENT_AREAS_, filtered.length, rows.length);
+    var cols = [
+      {label:'No.', render:function(r,i){ return String(i+1); }},
+      {label:'Area ID', render:function(r){ return '<span class="id-chip">'+escapeHtml(r.AreaID||'-')+'</span>'; }},
+      {label:'Nama Area', titleCol:true, field:'AreaName'},
+      {label:'Status', render:function(r){ return statusBadge(r.Status); }}
+    ];
+    var actions = function(r){
+      var edit = 'editAgentArea_(\''+r.AreaID+'\')';
+      var del = 'deleteAgentAreaConfirm_(\''+r.AreaID+'\',\''+escapeHtml(r.AreaName||'').replace(/'/g,"\\'")+'\')';
+      return rowActionButtons(null, edit, del);
+    };
+    return '<div class="card"><div class="table-toolbar"><span class="card-title">Area Pendaftaran</span>' +
+      '<button class="btn btn-primary btn-sm" onclick="editAgentArea_(null)">'+ICONS.plus+' Tambah Area</button>' +
+      '</div>' + filterHtml +
+      '<div class="notif-panel-hint" style="margin:0 16px 12px;">'+ICONS.info+' Dipakai sebagai pilihan dropdown "Area Pendaftaran" di form Registrasi Agent — untuk memantau agent itu mendaftar dari area mana. Hanya terlihat oleh Admin/Supervisor/Manager, tidak membatasi Store tempat Agent boleh order.</div>' +
+      renderTableOrCards_(cols, filtered, actions,
+        rows.length ? 'Tidak ada area yang cocok' : 'Belum ada area pendaftaran',
+        rows.length ? 'Coba ubah kata kunci pencarian atau filter yang dipakai.' : 'Tambahkan area pertama Anda — akan muncul otomatis di dropdown Area Pendaftaran pada form Registrasi Agent.',
+        ICONS.location) + '</div>';
+  }
+
+  function findAgentArea_(areaId){
+    var rows = AGENT_AREAS_CACHE_ || [];
+    for(var i=0;i<rows.length;i++){ if(rows[i].AreaID === areaId) return rows[i]; }
+    return null;
+  }
+
+  function editAgentArea_(areaId){
+    var a = areaId ? findAgentArea_(areaId) : {};
+    a = a || {};
+    var statusVal = a.Status || 'ACTIVE';
+    var statusField =
+      '<div class="form-group"><label>Status</label><select id="areaStatus">' +
+        '<option value="ACTIVE"'+(statusVal==='ACTIVE'?' selected':'')+'>ACTIVE</option>' +
+        '<option value="INACTIVE"'+(statusVal==='INACTIVE'?' selected':'')+'>INACTIVE</option>' +
+      '</select></div>';
+    var body =
+      formField_('areaName','Nama Area', a.AreaName, 'text', 'Contoh: Yogyakarta', true, ICONS.location) +
+      statusField;
+    openFormModal(areaId ? 'Edit Area' : 'Tambah Area', body, function(){ saveAgentAreaForm_(areaId); });
+  }
+
+  function saveAgentAreaForm_(areaId){
+    var payload = {
+      AreaID: areaId || undefined,
+      AreaName: val_('areaName'),
+      Status: val_('areaStatus') || 'ACTIVE'
+    };
+    if(!payload.AreaName){ showToast('Nama area wajib diisi.','error'); return; }
+    google.script.run
+      .withSuccessHandler(function(res){
+        if(res.success){
+          closeModal(); showToast(res.message || 'Area disimpan.','success');
+          AGENT_AREAS_CACHE_ = null; // paksa refresh cache (dipakai juga oleh dropdown Edit Agent & form Registrasi)
+          renderAgentAreas();
+        } else showToast(res.message || 'Gagal menyimpan.','error');
+      })
+      .withFailureHandler(function(e){ handleBackendError(e); })
+      .saveAgentArea(STATE.token, payload);
+  }
+
+  function deleteAgentAreaConfirm_(areaId, areaName){
+    openConfirmModal({
+      title: 'Hapus Area?',
+      message: 'Area "'+areaName+'" akan dihapus permanen. Area yang masih dipakai agent terdaftar tidak bisa dihapus — nonaktifkan saja (Status = INACTIVE).',
+      confirmLabel: 'Ya, Hapus', danger: true, icon: ICONS.trash,
+      onConfirm: function(){
+        setPageLoading_(true, 'Menghapus area');
+        google.script.run
+          .withSuccessHandler(function(res){
+            setPageLoading_(false);
+            if(res.success){
+              showToast(res.message || 'Area dihapus.','success');
+              AGENT_AREAS_CACHE_ = null;
+              renderAgentAreas();
+            } else showToast(res.message || 'Gagal menghapus.','error');
+          })
+          .withFailureHandler(function(e){ setPageLoading_(false); handleBackendError(e); })
+          .deleteAgentArea(STATE.token, areaId);
       }
     });
   }
@@ -12432,16 +12607,49 @@
     document.getElementById('regAddress').value = '';
     document.getElementById('regError').style.display = 'none';
     updateKTPHint_();
+    loadRegAreaOptions_();
     updateRegFormState_();
     document.getElementById('registerModal').classList.add('show');
+  }
+
+  /** Ambil daftar area pendaftaran AKTIF buat dropdown "Area Pendaftaran". Dipanggil setiap
+   *  modal dibuka; hasil di-cache di tab ini (REG_AREAS_CACHE_) supaya buka-tutup modal
+   *  berkali-kali tidak menembak backend berulang (daftar area jarang berubah dalam satu
+   *  sesi kunjungan) — persis pola ebLoadCompanyOptions_ di form Registrasi Employee Benefit. */
+  var REG_AREAS_CACHE_ = null;
+  function loadRegAreaOptions_(){
+    var select = document.getElementById('regArea');
+    if(!select) return;
+    if(REG_AREAS_CACHE_){ renderRegAreaOptions_(REG_AREAS_CACHE_); return; }
+    select.innerHTML = '<option value="">Memuat daftar area...</option>';
+    google.script.run.withSuccessHandler(function(list){
+      REG_AREAS_CACHE_ = list || [];
+      renderRegAreaOptions_(REG_AREAS_CACHE_);
+    }).withFailureHandler(function(){
+      select.innerHTML = '<option value="">Gagal memuat area — coba tutup & buka lagi</option>';
+    }).listAgentAreasPublic();
+  }
+
+  function renderRegAreaOptions_(list){
+    var select = document.getElementById('regArea');
+    if(!select) return;
+    if(!list.length){
+      select.innerHTML = '<option value="">Belum ada area terdaftar — hubungi Admin</option>';
+      updateRegFormState_();
+      return;
+    }
+    select.innerHTML = '<option value="">Pilih area pendaftaran</option>' +
+      list.map(function(a){ return '<option value="'+escapeHtml(a.areaName)+'">'+escapeHtml(a.areaName)+'</option>'; }).join('');
+    updateRegFormState_();
   }
 
   /** Cek semua field wajib + 3 dokumen sudah lengkap & valid, lalu enable/disable tombol
       "Kirim Registrasi" sesuai itu — dipanggil live tiap kali user mengetik atau selesai upload
       dokumen (lihat oninput di Index.html dan handleRegDocChange_ di bawah), supaya user tidak
       perlu klik dulu baru tahu ada yang kurang. Field wajib ditandai "*" merah di label
-      (lihat .required-mark di Stylesheet.html), termasuk Alamat KTP — datanya dipakai untuk
-      verifikasi identitas Agent jadi wajib diisi, sama seperti field data diri lainnya. */
+      (lihat .required-mark di Stylesheet.html), termasuk Alamat KTP & Area Pendaftaran —
+      datanya dipakai untuk verifikasi identitas & pemantauan asal Agent, jadi wajib diisi,
+      sama seperti field data diri lainnya. */
   function updateRegFormState_(){
     var btn = document.getElementById('regSubmitBtn');
     if(!btn) return;
@@ -12449,9 +12657,10 @@
     var hasEmail = !!val_('regEmail');
     var hasPhone = /^[0-9]{8,15}$/.test(val_('regPhone'));
     var hasAddress = !!val_('regAddress');
+    var hasArea = !!val_('regArea');
     var ktpValid = /^[0-9]{16}$/.test(val_('regKTPNumber'));
     var hasDocs = !!(REG_FILES.ktp && REG_FILES.npwp && REG_FILES.bank);
-    btn.disabled = !(hasName && hasEmail && hasPhone && hasAddress && ktpValid && hasDocs);
+    btn.disabled = !(hasName && hasEmail && hasPhone && hasAddress && hasArea && ktpValid && hasDocs);
   }
 
   /** Keeps the "x/16 digit" hint under the KTP field in sync as the user types. */
@@ -12491,6 +12700,11 @@
       errEl.style.display = 'block';
       return;
     }
+    if(!val_('regArea')){
+      errEl.textContent = 'Pilih Area Pendaftaran terlebih dahulu.';
+      errEl.style.display = 'block';
+      return;
+    }
     if(!/^[0-9]{16}$/.test(val_('regKTPNumber'))){
       errEl.textContent = 'Nomor KTP harus tepat 16 digit angka.';
       errEl.style.display = 'block';
@@ -12508,7 +12722,7 @@
 
     var payload = {
       fullName: val_('regFullName'), email: val_('regEmail'), phone: val_('regPhone'),
-      ktpNumber: val_('regKTPNumber'), addressKTP: val_('regAddress'),
+      ktpNumber: val_('regKTPNumber'), addressKTP: val_('regAddress'), registrationArea: val_('regArea'),
       ktpFile: REG_FILES.ktp, npwpFile: REG_FILES.npwp, bankFile: REG_FILES.bank
     };
     google.script.run.withSuccessHandler(function(res){
