@@ -4055,7 +4055,7 @@
               <option value="">Memuat daftar area...</option>
             </select>
           </div>
-          <div class="field-hint">Area asal Anda mendaftar — untuk keperluan pemantauan internal, tidak membatasi Area Pemesanan.</div>
+          <div class="field-hint">Area asal Anda mendaftar — untuk keperluan pemantauan internal, tidak membatasi tempat Anda order.</div>
         </div>
 
         <div class="reg-section-title"><span class="reg-section-num">2</span> <span>Upload Dokumen<span class="required-mark">*</span></span></div>
@@ -8091,7 +8091,15 @@
 
   function findAgentArea_(areaId){
     var rows = AGENT_AREAS_CACHE_ || [];
-    for(var i=0;i<rows.length;i++){ if(rows[i].AreaID === areaId) return rows[i]; }
+    // FIX BUG NYATA ("klik Edit, Nama Area tidak muncul walau Status kebetulan kelihatan
+    // benar"): sebelumnya pakai === (strict). Kalau AreaID di Sheet ada yang tersimpan
+    // sebagai Number (mis. area lama yang diisi manual langsung di Google Sheet, bukan
+    // lewat form "Tambah Area" yang selalu generate string "AREA-XXX"), baris tidak
+    // pernah ketemu karena 1 === '1' itu false di JS (areaId yang dikirim dari tombol
+    // Edit selalu string, ditulis di dalam kutip onclick="editAgentArea_('...')").
+    // FIX: samakan ke String() dulu sebelum dibandingkan, plus trim spasi nyasar.
+    var target = String(areaId == null ? '' : areaId).trim();
+    for(var i=0;i<rows.length;i++){ if(String(rows[i].AreaID == null ? '' : rows[i].AreaID).trim() === target) return rows[i]; }
     return null;
   }
 
