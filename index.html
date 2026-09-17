@@ -5766,7 +5766,14 @@
   // sini otomatis fallback ke urutan lama (flatten MENU_GROUPS, ambil 4 pertama).
   var BOTTOM_NAV_PRIMARY_ORDER_ = {
     AGENT: ['dashboard','transactions','orders','commission'],
-    ADMIN: ['dashboard','transactions','orders','commission']
+    ADMIN: ['dashboard','transactions','orders','commission'],
+    // BUG NYATA: STORE sebelumnya tidak didaftarkan di sini, jadi fallback ke urutan flatten
+    // MENU_GROUPS apa adanya (grup 'eb-menu': [...,'eb-profile','eb-scan','eb-store-transactions'])
+    // — di situ 'eb-profile' kebetulan ditulis SEBELUM 'eb-scan', jadi bottom nav mobile STORE
+    // tampil Dashboard -> Profile -> Scan Barcode -> Riwayat Transaksi (Profile nyempil di
+    // urutan ke-2). FIX: didaftarkan custom order eksplisit di sini, persis diminta:
+    // Dashboard -> Scan Barcode -> Riwayat Transaksi -> Profile (Profile paling terakhir).
+    STORE: ['dashboard','eb-scan','eb-store-transactions','eb-profile']
   };
 
   function renderBottomNav(){
