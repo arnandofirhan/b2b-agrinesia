@@ -1364,6 +1364,12 @@
   /* ---------- Dashboard section title ---------- */
   .dash-section-title{font-size:13px;font-weight:800;color:var(--ag-gray-700);text-transform:uppercase;letter-spacing:.04em;margin:0 0 12px;}
 
+  /* ---------- Dashboard tab toggle (B2B Agent | Employee Benefit) ---------- */
+  .dash-tabs{display:flex;gap:6px;background:var(--ag-gray-100);border-radius:var(--radius-lg);padding:4px;width:fit-content;margin:14px 0 4px;}
+  .dash-tab-btn{background:none;border:none;border-radius:calc(var(--radius-lg) - 4px);padding:8px 18px;font-size:13px;font-weight:700;color:var(--ag-gray-600);cursor:pointer;transition:background .15s,color .15s;}
+  .dash-tab-btn:hover{color:var(--ag-gray-900);}
+  .dash-tab-btn-active{background:var(--ag-surface);color:var(--ag-green);box-shadow:0 1px 3px rgba(16,24,32,.12);}
+
   /* ---------- Dashboard extra panels (status ringkasan + PO terbaru) ---------- */
   .dash-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
   .dash-panel{background:var(--ag-surface);border:1px solid var(--ag-gray-200);border-radius:var(--radius-lg);padding:16px 18px;}
@@ -4599,6 +4605,7 @@
     token: null,
     user: null,       // {userId, name, email, role, agentId}
     currentPage: 'dashboard',
+    dashboardTab: 'B2B', // 'B2B' | 'EB' — toggle Dashboard admin (lihat renderDashboard())
     sidebarCollapsed: false,
     clientCache: {}   // simple in-memory cache for master data
   };
@@ -12990,6 +12997,12 @@
     if(STATE.user && STATE.user.role === 'STORE'){
       return renderStoreDashboard();
     }
+    // Tab "B2B Agent | Employee Benefit" — hanya untuk ADMIN/SUPERVISOR/MANAGER (role yang
+    // juga boleh panggil ebGetAdminDashboard di backend, lihat EB_REVIEWER_ROLES). Agent,
+    // Employee & Store tetap pakai dashboard khusus masing-masing di atas, tidak tersentuh.
+    if(STATE.dashboardTab === 'EB'){
+      return renderEbAdminDashboard();
+    }
     if(DASH_DATA_CACHE_){
       // Instant paint from what we already have — feels immediate, no spinner flash.
       paintDashboardKpis_(DASH_DATA_CACHE_.kpiData);
@@ -14186,6 +14199,7 @@
           '<div class="welcome-banner-clock-time" id="dashClockTime"></div>' +
         '</div>' +
       '</div>' +
+      dashboardTabsHtml_() +
       '<div class="kpi-grid">' + kpis + '</div>' +
       '<div class="dash-panel" style="margin-bottom:16px;">' +
         '<div class="dash-panel-head"><span class="dash-section-title" style="margin:0;">Tren PO 7 Hari Terakhir</span></div>' +
@@ -14225,6 +14239,230 @@
       renderDashTrendBox_(DASH_DATA_CACHE_.trendData);
       renderDashLeaderboardBox_(DASH_DATA_CACHE_.leaderboard || []);
     }
+  }
+
+  /** Toggle "B2B Agent | Employee Benefit" di atas kartu KPI Dashboard — hanya dirender
+      untuk role yang bisa lihat dua-duanya (ADMIN/SUPERVISOR/MANAGER; lihat gate-nya di
+      renderDashboard()). Switch tab cukup ganti STATE.dashboardTab lalu render ulang. */
+  function dashboardTabsHtml_(){
+    var tab = STATE.dashboardTab || 'B2B';
+    function btn(key, label){
+      var active = tab === key ? ' dash-tab-btn-active' : '';
+      return '<button class="dash-tab-btn'+active+'" onclick="switchDashboardTab_(\''+key+'\')">'+label+'</button>';
+    }
+    return '<div class="dash-tabs">' + btn('B2B','B2B Agent') + btn('EB','Employee Benefit') + '</div>';
+  }
+
+  function switchDashboardTab_(tab){
+    if(STATE.dashboardTab === tab) return;
+    STATE.dashboardTab = tab;
+    renderDashboard();
+  }
+
+  // =============================================================
+  // DASHBOARD — EMPLOYEE BENEFIT (tab "Employee Benefit")
+  // Mirror 1:1 dari struktur dashboard B2B Agent di atas (KPI, tren 7 hari, ringkasan
+  // status, daftar terbaru, leaderboard) supaya terasa satu keluarga UI/UX yang sama,
+  // hanya datanya dari ebGetAdminDashboard() (lihat EmployeeBenefit.gs).
+  // =============================================================
+  var EB_DASH_DATA_CACHE_ = null;
+
+  function renderEbAdminDashboard(){
+    if(EB_DASH_DATA_CACHE_){
+      // Instant paint dari cache tab ini — sama semangatnya dengan DASH_DATA_CACHE_ punya B2B.
+      paintEbDashboardKpis_(EB_DASH_DATA_CACHE_);
+      startDashboardClock_();
+    }
+    google.script.run
+      .withSuccessHandler(function(data){
+        EB_DASH_DATA_CACHE_ = data;
+        if(STATE.currentPage === 'dashboard' && STATE.dashboardTab === 'EB'){
+          paintEbDashboardKpis_(data);
+        }
+      })
+      .withFailureHandler(function(err){
+        if(!EB_DASH_DATA_CACHE_){
+          handleBackendError(err, PAGE_HTML_CACHE['dashboard'] ? null : document.getElementById('content'));
+        }
+      })
+      .ebGetAdminDashboard(STATE.token);
+  }
+
+  var EB_STATUS_LABELS_ = {
+    SUBMITTED:'Submitted', UNDER_REVIEW:'Under Review', APPROVED:'Approved', REJECTED:'Rejected'
+  };
+  var EB_STATUS_BAR_COLOR_ = {
+    APPROVED:'#1E7A4C', REJECTED:'#E24C4C', SUBMITTED:'#F2994A', UNDER_REVIEW:'#F2994A'
+  };
+
+  function paintEbDashboardKpis_(data){
+    if(STATE.currentPage !== 'dashboard' || STATE.dashboardTab !== 'EB') return;
+
+    var kpis =
+      kpiCard('Total Karyawan Terdaftar', data.totalEmployees, 'green', ICONS.agent, 'Karyawan approved di sistem', 'eb-employees') +
+      kpiCard('Total Transaksi', data.totalTrxCount, 'blue', ICONS.cart, 'Semua transaksi Employee Benefit') +
+      kpiCard('Total Nilai Transaksi', formatRupiah(data.totalTrxAmount), 'orange', ICONS.commission, 'Total nilai belanja karyawan');
+
+    var html =
+      '<div class="welcome-banner">' +
+        '<span class="welcome-banner-icon" id="dashGreetIcon"></span>' +
+        '<div style="flex:1;min-width:0;">' +
+          '<div class="welcome-banner-title" id="dashGreetTitle"></div>' +
+          '<div class="welcome-banner-sub">Ringkasan aktivitas Employee Benefit terbaru</div>' +
+        '</div>' +
+        '<div class="welcome-banner-clock">' +
+          '<div class="welcome-banner-clock-time" id="dashClockTime"></div>' +
+        '</div>' +
+      '</div>' +
+      dashboardTabsHtml_() +
+      '<div class="kpi-grid">' + kpis + '</div>' +
+      '<div class="dash-panel" style="margin-bottom:16px;">' +
+        '<div class="dash-panel-head"><span class="dash-section-title" style="margin:0;">Tren Transaksi 7 Hari Terakhir</span></div>' +
+        '<div id="ebDashTrendBox"></div>' +
+      '</div>' +
+      '<div class="dash-grid-2" id="ebDashExtraGrid">' +
+        '<div class="dash-panel">' +
+          '<div class="dash-panel-head"><span class="dash-section-title" style="margin:0;">Ringkasan Status Registrasi</span></div>' +
+          '<div id="ebDashStatusBox"></div>' +
+        '</div>' +
+        '<div class="dash-panel">' +
+          '<div class="dash-panel-head">' +
+            '<span class="dash-section-title" style="margin:0;">Transaksi Terbaru</span>' +
+          '</div>' +
+          '<div id="ebDashRecentBox"></div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="dash-panel" style="margin-top:16px;">' +
+        '<div class="dash-panel-head">' +
+          '<span class="dash-section-title" style="margin:0;">Leaderboard Perusahaan Teratas</span>' +
+          '<button class="dash-panel-link" onclick="showPage(\'eb-companies\')">Lihat semua &rarr;</button>' +
+        '</div>' +
+        '<div id="ebDashLeaderboardBox"></div>' +
+      '</div>';
+
+    paintPage_('dashboard', html);
+    startDashboardClock_();
+    renderEbDashTrendBox_(data.trend);
+    renderEbDashStatusBox_(data.statusCounts);
+    renderEbDashRecentBox_(data.recent);
+    renderEbDashLeaderboardBox_(data.leaderboard);
+  }
+
+  function renderEbDashTrendBox_(trend){
+    var box = document.getElementById('ebDashTrendBox');
+    if(!box) return;
+    if(!trend || !trend.thisWeekCount){
+      box.innerHTML = emptyState_('Belum ada data', 'Tren transaksi akan muncul di sini.', ICONS.cart);
+      return;
+    }
+    function deltaHtml_(pct, label){
+      if(pct === null || pct === undefined){
+        return '<span class="dash-trend-delta dash-trend-delta-neutral">'+label+': data baru</span>';
+      }
+      var up = pct >= 0;
+      var arrow = up ? '&#8599;' : '&#8600;';
+      var cls = up ? 'dash-trend-delta-up' : 'dash-trend-delta-down';
+      return '<span class="dash-trend-delta '+cls+'">'+arrow+' '+(up?'+':'')+pct+'% '+label+' vs minggu lalu</span>';
+    }
+    box.innerHTML =
+      '<div class="dash-trend-summary">' +
+        '<div class="dash-trend-summary-item">' +
+          '<div class="dash-trend-summary-value">'+trend.thisWeekCount+' Transaksi</div>' +
+          deltaHtml_(trend.trxCountDeltaPct, 'jumlah') +
+        '</div>' +
+        '<div class="dash-trend-summary-item">' +
+          '<div class="dash-trend-summary-value">'+formatRupiah(trend.thisWeekValue)+'</div>' +
+          deltaHtml_(trend.trxValueDeltaPct, 'nilai') +
+        '</div>' +
+      '</div>' +
+      '<div style="height:140px;position:relative;margin-top:12px;"><canvas id="ebDashTrendCanvas"></canvas></div>';
+
+    ensureChartJsLoaded_(function(){
+      var canvas = document.getElementById('ebDashTrendCanvas');
+      if(!canvas || typeof Chart === 'undefined') return;
+      if(EB_DASH_TREND_CHART_INSTANCE_){ EB_DASH_TREND_CHART_INSTANCE_.destroy(); EB_DASH_TREND_CHART_INSTANCE_ = null; }
+      var rootStyle = getComputedStyle(document.documentElement);
+      var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      var axisColor = (rootStyle.getPropertyValue('--ag-gray-500') || '#7C8792').trim();
+      var gridColor = isDark ? 'rgba(255,255,255,.08)' : 'rgba(16,24,32,.06)';
+      var lineColor = (rootStyle.getPropertyValue('--ag-green') || '#1E7A4C').trim();
+      var fillColor = isDark ? 'rgba(63,190,131,0.16)' : 'rgba(30,122,76,0.1)';
+      EB_DASH_TREND_CHART_INSTANCE_ = new Chart(canvas, {
+        type:'line',
+        data:{
+          labels: trend.labels,
+          datasets:[{
+            data: trend.counts,
+            borderColor:lineColor, backgroundColor:fillColor,
+            fill:true, tension:0.3, pointRadius:3, pointBackgroundColor:lineColor
+          }]
+        },
+        options:{
+          responsive:true, maintainAspectRatio:false,
+          plugins:{ legend:{ display:false } },
+          scales:{
+            x:{ grid:{ display:false }, ticks:{ color:axisColor } },
+            y:{ beginAtZero:true, ticks:{ precision:0, color:axisColor }, grid:{ color:gridColor } }
+          }
+        }
+      });
+    });
+  }
+  var EB_DASH_TREND_CHART_INSTANCE_ = null;
+
+  function renderEbDashStatusBox_(statusCounts){
+    var box = document.getElementById('ebDashStatusBox');
+    if(!box) return;
+    var keys = Object.keys(statusCounts || {});
+    if(!keys.length){ box.innerHTML = emptyState_('Belum ada karyawan', 'Data registrasi akan muncul di sini.', ICONS.agent); return; }
+    var max = Math.max.apply(null, keys.map(function(k){ return statusCounts[k]; }));
+    var order = keys.sort(function(a,b){ return statusCounts[b]-statusCounts[a]; });
+    box.innerHTML = order.map(function(status){
+      var count = statusCounts[status];
+      var pct = max ? Math.round((count/max)*100) : 0;
+      var color = EB_STATUS_BAR_COLOR_[status] || '#8A94A6';
+      var label = EB_STATUS_LABELS_[status] || String(status||'-').replace(/_/g,' ');
+      return '<div class="po-status-row" onclick="showPage(\'eb-employees\')">' +
+        '<div class="po-status-row-top"><span class="po-status-row-label">'+escapeHtml(label)+'</span><span class="po-status-row-count">'+count+'</span></div>' +
+        '<div class="po-status-bar-track"><div class="po-status-bar-fill" style="width:'+pct+'%;background:'+color+';"></div></div>' +
+      '</div>';
+    }).join('');
+  }
+
+  function renderEbDashRecentBox_(recent){
+    var box = document.getElementById('ebDashRecentBox');
+    if(!box) return;
+    if(!recent || !recent.length){ box.innerHTML = emptyState_('Belum ada transaksi', 'Data transaksi akan muncul di sini.', ICONS.cart); return; }
+    box.innerHTML = recent.map(function(t){
+      return '<div class="po-recent-row">' +
+        '<div class="po-recent-main">' +
+          '<span class="id-chip">'+escapeHtml(t.trxId||'-')+'</span>' +
+          '<span class="po-recent-store">'+escapeHtml(t.employeeName||'-')+'</span>' +
+        '</div>' +
+        '<div class="po-recent-side">' +
+          '<span class="po-recent-amount">'+formatRupiah(t.amount)+'</span>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  function renderEbDashLeaderboardBox_(leaderboard){
+    var box = document.getElementById('ebDashLeaderboardBox');
+    if(!box) return;
+    if(!leaderboard || !leaderboard.length){
+      box.innerHTML = emptyState_('Belum ada data', 'Leaderboard perusahaan akan muncul di sini setelah ada transaksi.', ICONS.stores);
+      return;
+    }
+    var rows = leaderboard.map(function(c, i){
+      var initials = String(c.companyName||'?').trim().split(/\s+/).slice(0,2).map(function(w){return w[0]||'';}).join('').toUpperCase();
+      return '<div class="dash-leaderboard-row">' +
+        '<div class="dash-leaderboard-rank">'+(i+1)+'</div>' +
+        '<div class="dash-leaderboard-avatar">'+initials+'</div>' +
+        '<div class="dash-leaderboard-name">'+escapeHtml(c.companyName)+'<div class="dash-leaderboard-sub">'+c.trxCount+' transaksi</div></div>' +
+        '<div class="dash-leaderboard-value">'+formatRupiah(c.total)+'</div>' +
+      '</div>';
+    }).join('');
+    box.innerHTML = '<div class="dash-leaderboard-list">' + rows + '</div>';
   }
 
   /** Baris tombol aksi cepat di Dashboard — shortcut ke aksi yang paling sering
