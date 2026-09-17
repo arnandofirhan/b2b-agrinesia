@@ -4677,9 +4677,15 @@
     { key: 'audit-log',   icon: ICONS.audit,     label: 'Audit Log',        roles: ['ADMIN','MANAGER'] },
     { key: 'eb-qr',           icon: ICONS.reports,     label: 'QR Code',            roles: ['EMPLOYEE'] },
     { key: 'eb-transactions', icon: ICONS.transactions,label: 'Riwayat Transaksi',  roles: ['EMPLOYEE'] },
-    { key: 'eb-profile',      icon: ICONS.users,       label: 'Profile',            roles: ['EMPLOYEE','STORE'] },
+    // Urutan STORE sengaja dibuat: Dashboard -> Scan Barcode -> Riwayat Transaksi -> Profile
+    // (Profile diletakkan PALING TERAKHIR, meniru pola bottom-nav EMPLOYEE: Dashboard -> QR
+    // Code -> Riwayat Transaksi -> Profile). eb-profile dipakai bareng EMPLOYEE & STORE
+    // (lihat renderEmployeeProfile), jadi posisinya di array ini HARUS setelah eb-scan &
+    // eb-store-transactions supaya urutan STORE benar — EMPLOYEE tidak kepengaruh karena
+    // EMPLOYEE tidak punya 2 item itu di role-nya (otomatis ke-filter keluar).
     { key: 'eb-scan',         icon: ICONS.cart,        label: 'Scan Barcode',       roles: ['STORE'] },
     { key: 'eb-store-transactions', icon: ICONS.transactions, label: 'Riwayat Transaksi', roles: ['STORE'] },
+    { key: 'eb-profile',      icon: ICONS.users,       label: 'Profile',            roles: ['EMPLOYEE','STORE'] },
     { key: 'eb-companies',    icon: ICONS.stores,      label: 'Master Company',     roles: ['ADMIN','SUPERVISOR','MANAGER'] },
     { key: 'eb-employees',    icon: ICONS.users,       label: 'Kelola Employee',    roles: ['ADMIN','SUPERVISOR','MANAGER'] },
     { key: 'eb-store-users',  icon: ICONS.agent,       label: 'Kelola Store User',  roles: ['ADMIN','SUPERVISOR','MANAGER'] }
@@ -15973,17 +15979,20 @@
         '<div class="eb-dash-greet" style="margin-bottom:0;">Halo, <strong>'+escapeHtml(name)+'</strong> &mdash; ringkasan benefit Anda.</div>' +
         '<div class="filter-select-wrap"><select class="filter-select" onchange="ebChangeDashboardMonth_(this.value)">'+monthOptsHtml+'</select></div>' +
       '</div>' +
-      // FIX: dulu ada 2 kartu KPI yang isinya nyaris sama maknanya dan bikin bingung —
-      // "Transaksi Bulan Ini" (jumlah transaksi) vs "Total Belanja Bulan Ini" (nominal Rp).
-      // Sekarang digabung jadi SATU kartu: nominal tetap jadi angka utama (paling relevan utk
-      // benefit karyawan), jumlah transaksinya dipindah jadi keterangan kecil di bawahnya —
-      // info yang sama tetap ada, cuma tidak lagi berupa kartu terpisah.
+      // TAMBAHAN: kartu "Transaksi Bulan Ini" dikembalikan lagi jadi kartu terpisah (bukan
+      // cuma keterangan kecil di bawah Total Belanja) — disamakan gayanya dgn kartu pertama
+      // milik Dashboard Store (kpi-green + ICONS.transactions), supaya kedua Dashboard
+      // konsisten.
       '<div class="kpi-grid">' +
+        '<div class="kpi-card kpi-green">' +
+          '<div class="kpi-icon">'+ICONS.transactions+'</div>' +
+          '<div class="kpi-value">'+d.monthTrxCount+'</div>' +
+          '<div class="kpi-label">Transaksi Bulan Ini</div>' +
+        '</div>' +
         '<div class="kpi-card kpi-blue">' +
           '<div class="kpi-icon">'+ICONS.reports+'</div>' +
           '<div class="kpi-value">'+formatRupiah(d.monthTotalAmount)+'</div>' +
           '<div class="kpi-label">Total Belanja Bulan Ini</div>' +
-          '<div style="position:relative;z-index:1;font-size:10.5px;color:rgba(255,255,255,.85);margin-top:2px;">'+d.monthTrxCount+' transaksi</div>' +
         '</div>' +
         '<div class="kpi-card kpi-purple">' +
           '<div class="kpi-icon">'+ICONS.cart+'</div>' +
