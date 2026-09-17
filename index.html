@@ -14268,8 +14268,14 @@
   // hanya datanya dari ebGetAdminDashboard() (lihat EmployeeBenefit.gs).
   // =============================================================
   var EB_DASH_DATA_CACHE_ = null;
+  // Bulan yang sedang dipilih di panel "Ringkasan Bulan Ini" — terpisah dari EB_DASH_DATA_CACHE_
+  // (yang all-time) karena ebGetAdminOverview di-refetch tiap kali dropdown bulan diganti,
+  // tanpa perlu render ulang seluruh dashboard (tren 7 hari, leaderboard, dst tetap diam).
+  var EB_DASH_ADMIN_YM_ = null;
+  var EB_DASH_ADMIN_OVERVIEW_CACHE_ = {}; // keyed by yearMonth, supaya ganti2 bulan tidak selalu round-trip ke server
 
   function renderEbAdminDashboard(){
+    if(!EB_DASH_ADMIN_YM_) EB_DASH_ADMIN_YM_ = ebMonthOptions_()[0].value; // default: bulan berjalan
     if(EB_DASH_DATA_CACHE_){
       // Instant paint dari cache tab ini — sama semangatnya dengan DASH_DATA_CACHE_ punya B2B.
       paintEbDashboardKpis_(EB_DASH_DATA_CACHE_);
@@ -14288,6 +14294,81 @@
         }
       })
       .ebGetAdminDashboard(STATE.token);
+    ebLoadDashMonthOverview_(EB_DASH_ADMIN_YM_);
+  }
+
+  /** Dipanggil saat dropdown bulan di panel "Ringkasan Bulan Ini" diganti — hanya me-refresh
+   *  panel itu sendiri (ebDashMonthBox), TIDAK me-render ulang seluruh dashboard, supaya tren
+   *  7 hari/leaderboard/dll di atasnya tidak ikut "berkedip". */
+  function ebChangeDashMonthOverview_(ym){
+    EB_DASH_ADMIN_YM_ = ym;
+    ebLoadDashMonthOverview_(ym);
+  }
+
+  function ebLoadDashMonthOverview_(ym){
+    var cached = EB_DASH_ADMIN_OVERVIEW_CACHE_[ym];
+    if(cached) renderEbDashMonthBox_(cached);
+    else renderEbDashMonthBox_(null, true); // true = tampilkan skeleton loading
+
+    google.script.run
+      .withSuccessHandler(function(data){
+        EB_DASH_ADMIN_OVERVIEW_CACHE_[ym] = data;
+        if(STATE.currentPage === 'dashboard' && STATE.dashboardTab === 'EB' && EB_DASH_ADMIN_YM_ === ym){
+          renderEbDashMonthBox_(data);
+        }
+      })
+      .withFailureHandler(function(e){
+        if(!cached) renderEbDashMonthBox_(null, false, true); // true = tampilkan pesan gagal
+      })
+      .ebGetAdminOverview(STATE.token, ym);
+  }
+
+  function renderEbDashMonthBox_(data, loading, failed){
+    var box = document.getElementById('ebDashMonthBox');
+    if(!box) return;
+    if(loading){
+      box.innerHTML = '<div class="kpi-grid-sm">' +
+        Array(3).fill('<div class="kpi-card kpi-skeleton"><div class="skeleton-line" style="width:60%;height:11px;"></div><div class="skeleton-line" style="width:40%;height:20px;margin-top:8px;"></div></div>').join('') +
+        '</div>';
+      return;
+    }
+    if(failed || !data){
+      box.innerHTML = emptyState_('Gagal memuat data', 'Coba pilih ulang bulannya.', ICONS.cart);
+      return;
+    }
+    var avgPerTrx = data.monthTrxCount ? Math.round(data.monthTotalAmount / data.monthTrxCount) : 0;
+    box.innerHTML =
+      '<div class="kpi-grid-sm">' +
+        '<div class="kpi-card kpi-blue">' +
+          '<div class="kpi-icon">'+ICONS.cart+'</div>' +
+          '<div class="kpi-value">'+data.monthTrxCount+'</div>' +
+          '<div class="kpi-label">Transaksi Bulan Ini</div>' +
+        '</div>' +
+        '<div class="kpi-card kpi-orange">' +
+          '<div class="kpi-icon">'+ICONS.commission+'</div>' +
+          '<div class="kpi-value">'+formatRupiah(data.monthTotalAmount)+'</div>' +
+          '<div class="kpi-label">Nilai Transaksi Bulan Ini</div>' +
+        '</div>' +
+        '<div class="kpi-card kpi-purple">' +
+          '<div class="kpi-icon">'+ICONS.reports+'</div>' +
+          '<div class="kpi-value">'+formatRupiah(avgPerTrx)+'</div>' +
+          '<div class="kpi-label">Rata-rata / Transaksi</div>' +
+        '</div>' +
+      '</div>' +
+      (data.byCompany && data.byCompany.length
+        ? '<div class="eb-month-company-list">' +
+            data.byCompany.slice(0,5).map(function(c){
+              return '<div class="eb-recent-row" style="cursor:default;">' +
+                '<div class="eb-recent-icon">'+ICONS.stores+'</div>' +
+                '<div class="eb-recent-info">' +
+                  '<div class="eb-recent-store">'+escapeHtml(c.companyName)+'</div>' +
+                  '<div class="eb-recent-sub">'+c.trxCount+' transaksi</div>' +
+                '</div>' +
+                '<div class="eb-recent-amount">'+formatRupiah(c.totalAmount)+'</div>' +
+              '</div>';
+            }).join('') +
+          '</div>'
+        : emptyState_('Belum ada transaksi', 'Belum ada transaksi Employee Benefit di bulan ini.', ICONS.cart));
   }
 
   var EB_STATUS_LABELS_ = {
@@ -14305,6 +14386,10 @@
       kpiCard('Total Transaksi', data.totalTrxCount, 'blue', ICONS.cart, 'Semua transaksi Employee Benefit', 'eb-transactions-admin') +
       kpiCard('Total Nilai Transaksi', formatRupiah(data.totalTrxAmount), 'orange', ICONS.commission, 'Total nilai belanja karyawan');
 
+    var monthOptsHtml = ebMonthOptions_().map(function(m){
+      return '<option value="'+m.value+'"'+(m.value===EB_DASH_ADMIN_YM_?' selected':'')+'>'+escapeHtml(m.label)+'</option>';
+    }).join('');
+
     var html =
       '<div class="welcome-banner">' +
         '<span class="welcome-banner-icon" id="dashGreetIcon"></span>' +
@@ -14318,6 +14403,13 @@
       '</div>' +
       dashboardTabsHtml_() +
       '<div class="kpi-grid">' + kpis + '</div>' +
+      '<div class="dash-panel" style="margin-bottom:16px;">' +
+        '<div class="dash-panel-head">' +
+          '<span class="dash-section-title" style="margin:0;">Ringkasan Bulan Ini</span>' +
+          '<div class="filter-select-wrap"><select class="filter-select" onchange="ebChangeDashMonthOverview_(this.value)">'+monthOptsHtml+'</select></div>' +
+        '</div>' +
+        '<div id="ebDashMonthBox"></div>' +
+      '</div>' +
       '<div class="dash-panel" style="margin-bottom:16px;">' +
         '<div class="dash-panel-head"><span class="dash-section-title" style="margin:0;">Tren Transaksi 7 Hari Terakhir</span></div>' +
         '<div id="ebDashTrendBox"></div>' +
@@ -14349,6 +14441,12 @@
     renderEbDashStatusBox_(data.statusCounts);
     renderEbDashRecentBox_(data.recent);
     renderEbDashLeaderboardBox_(data.leaderboard);
+    // Panel bulan pakai cache/data terpisah (ebLoadDashMonthOverview_ dipanggil dari
+    // renderEbAdminDashboard) — di sini cukup re-render dari cache yg sudah ada supaya
+    // panel tidak kosong ketika paintEbDashboardKpis_ dipanggil ulang dari cache instan.
+    var cachedMonth = EB_DASH_ADMIN_OVERVIEW_CACHE_[EB_DASH_ADMIN_YM_];
+    if(cachedMonth) renderEbDashMonthBox_(cachedMonth);
+    else renderEbDashMonthBox_(null, true);
   }
 
   function renderEbDashTrendBox_(trend){
@@ -16462,6 +16560,19 @@
     renderEmployeeDashboard();
   }
 
+  /** Versi client-side dari ebYearMonthOf_ (EmployeeBenefit.gs) — dipakai filter tabel
+   *  Transaksi Employee Benefit di browser tanpa perlu round-trip ke server. createdAt dari
+   *  ebListTransactions selalu berupa string ISO (lihat ebMapTransactions_), jadi cukup
+   *  di-slice 7 karakter pertama ("YYYY-MM-DD..." -> "YYYY-MM"), sama seperti fallback
+   *  string di versi backend-nya. */
+  function ebYearMonthOfClient_(isoOrDate){
+    if(!isoOrDate) return '';
+    if(isoOrDate instanceof Date){
+      return isoOrDate.getFullYear()+'-'+String(isoOrDate.getMonth()+1).padStart(2,'0');
+    }
+    return String(isoOrDate).slice(0,7);
+  }
+
   /** 12 bulan terakhir (termasuk bulan berjalan) utk isi dropdown filter periode — format
    *  value "YYYY-MM" sama persis dengan yang dipakai backend (ebNormalizeYearMonth_). */
   function ebMonthOptions_(){
@@ -17686,10 +17797,20 @@
     paintPage_('eb-transactions-admin', ebTransactionsAdminPageHtml_());
   }
 
+  /** Opsi dropdown filter Bulan Transaksi — 12 bulan terakhir + "Semua Bulan" di paling atas
+   *  (beda dari ebMonthOptions_ yang dipakai Dashboard Karyawan/Store, karena di sana selalu
+   *  ada 1 bulan terpilih; di tabel ini defaultnya "Semua" supaya riwayat lama tetap kelihatan
+   *  tanpa harus pilih bulan dulu). Value bulan pakai format "YYYY-MM" sama seperti backend. */
+  function ebTrxMonthFilterOptions_(){
+    return ebMonthOptions_();
+  }
+
   function ebTransactionsAdminPageHtml_(){
     var rows = EB_TRANSACTIONS_ADMIN_CACHE_;
     var fieldConfigs = [
-      {key:'companyName', label:'Perusahaan', options:uniqueOptions_(rows,'companyName'), match:function(r,v){return r.companyName===v;}}
+      {key:'companyName', label:'Perusahaan', options:uniqueOptions_(rows,'companyName'), match:function(r,v){return r.companyName===v;}},
+      {key:'bulan', label:'Bulan', options:ebTrxMonthFilterOptions_(), match:function(r,v){return ebYearMonthOfClient_(r.createdAt)===v;}},
+      {key:'tanggal', label:'Tanggal', type:'daterange', dateField:'createdAt'}
     ];
     var filtered = applyListFilters_(rows, FILTER_STATE_EB_TRANSACTIONS_ADMIN_, ['employeeName','trxNumber','idCardNumber','storeName','trxId'], fieldConfigs);
     var filterHtml = filterBarHtml_('onFilterChangeEbTransactionsAdmin_', 'Cari nama karyawan, No. Transaksi, No. ID Card, atau store...', fieldConfigs, FILTER_STATE_EB_TRANSACTIONS_ADMIN_, filtered.length, rows.length);
@@ -17779,13 +17900,7 @@
       docsHtml += '<div class="doc-preview-empty">Belum ada foto struk diunggah</div>';
     }
 
-    var canDeleteThis = STATE.user.role === 'ADMIN' || STATE.user.role === 'SUPERVISOR' || STATE.user.role === 'MANAGER';
-    var footer = canDeleteThis
-      ? '<button class="btn btn-danger" style="display:inline-flex;align-items:center;gap:7px;" onclick="closeModal();deleteEbTransactionConfirm_(\''+escapeHtml(r.trxId)+'\')"><span style="width:15px;height:15px;display:inline-flex;">'+ICONS.trash+'</span>Hapus Transaksi</button>' +
-        '<button class="btn btn-secondary" onclick="closeModal()">Tutup</button>'
-      : '';
-
-    openModal(viewModalHtml_('Detail Transaksi Employee Benefit', head + infoGrid + docsHtml, '', 'modal-lg', footer), 'modal-lg');
+    openModal(viewModalHtml_('Detail Transaksi Employee Benefit', head + infoGrid + docsHtml, '', 'modal-lg'), 'modal-lg');
   }
 
   /** Admin/Supervisor/Manager: hapus permanen 1 transaksi Employee Benefit (mis. salah input
