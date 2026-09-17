@@ -4724,7 +4724,7 @@
     { key: 'master',    label: 'Master Data',       items: ['agents','agent-areas','products','stores'] },
     { key: 'laporan',   label: 'Laporan & Jadwal',  items: ['reports','calendar'] },
     { key: 'sistem',    label: 'Sistem',            items: ['users','settings','dashboard-settings','audit-log'] },
-    { key: 'eb-menu',   label: 'Employee Benefit',  items: ['eb-companies','eb-employees','eb-store-users','eb-qr','eb-transactions','eb-profile','eb-scan','eb-store-transactions'] }
+    { key: 'eb-menu',   label: 'Employee Benefit',  items: ['eb-companies','eb-employees','eb-transactions-admin','eb-store-users','eb-qr','eb-transactions','eb-profile','eb-scan','eb-store-transactions'] }
   ];
   // Which groups start expanded by default (persisted in-session via SIDEBAR_GROUP_STATE_ below).
   var SIDEBAR_GROUP_STATE_ = { transaksi: true, master: true, laporan: true, sistem: true, 'eb-menu': true };
@@ -4739,7 +4739,7 @@
     'audit-log': 'Audit Log', reports: 'Laporan', calendar: 'Kalender Pengambilan',
     'eb-qr': 'QR Code', 'eb-transactions': 'Riwayat Transaksi', 'eb-profile': 'Profile', 'eb-scan': 'Scan Barcode',
     'eb-store-transactions': 'Riwayat Transaksi',
-    'eb-companies': 'Master Company', 'eb-employees': 'Kelola Employee', 'eb-store-users': 'Kelola Store User'
+    'eb-companies': 'Master Company', 'eb-employees': 'Kelola Employee', 'eb-transactions-admin': 'Transaksi Employee Benefit', 'eb-store-users': 'Kelola Store User'
   };
 
   // =============================================================
@@ -17708,10 +17708,12 @@
       {label:'Nominal', render:function(r){ return formatRupiah(r.amount); }},
       {label:'Tanggal', render:function(r){ return formatDateTime_(r.createdAt); }}
     ];
+    var canDeleteEbTrx = STATE.user.role === 'ADMIN' || STATE.user.role === 'SUPERVISOR' || STATE.user.role === 'MANAGER';
     var actions = function(r){
       var html = '<div class="row-actions">';
-      if(r.receiptUrl){
-        html += '<button class="action-btn view" title="Lihat Struk" onclick="window.open(\''+escapeHtml(r.receiptUrl)+'\',\'_blank\')">'+ICONS.view+'</button>';
+      html += '<button class="action-btn view" title="Lihat Detail" onclick="viewEbTransactionDetail_(\''+escapeHtml(r.trxId)+'\')">'+ICONS.view+'</button>';
+      if(canDeleteEbTrx){
+        html += '<button class="action-btn delete" title="Hapus" onclick="deleteEbTransactionConfirm_(\''+escapeHtml(r.trxId)+'\')">'+ICONS.trash+'</button>';
       }
       html += '</div>';
       return html;
@@ -17722,6 +17724,93 @@
         rows.length ? 'Tidak ada transaksi yang cocok' : 'Belum ada transaksi',
         rows.length ? 'Coba ubah kata kunci pencarian atau filter yang dipakai.' : 'Transaksi hasil scan QR di store akan muncul di sini.',
         ICONS.cart) + '</div>';
+  }
+
+  /** Popup Detail Transaksi Employee Benefit — mirror pola viewPODetail(): ringkasan di
+   *  atas (avatar inisial + Trx ID + tanggal), grid data transaksi, lalu foto struk sebagai
+   *  docPreviewCard_ (thumbnail yang bisa diklik utk zoom/lightbox via openDocLightbox,
+   *  sama seperti Bukti Pembayaran di Detail PO). Data transaksi sudah lengkap di
+   *  EB_TRANSACTIONS_ADMIN_CACHE_ (hasil ebListTransactions), jadi tidak perlu round-trip
+   *  ke server lagi seperti viewPODetail — cukup render langsung dari cache. */
+  function findEbTransactionAdmin_(trxId){
+    for(var i=0;i<EB_TRANSACTIONS_ADMIN_CACHE_.length;i++){
+      if(EB_TRANSACTIONS_ADMIN_CACHE_[i].trxId === trxId) return EB_TRANSACTIONS_ADMIN_CACHE_[i];
+    }
+    return null;
+  }
+
+  function viewEbTransactionDetail_(trxId){
+    var r = findEbTransactionAdmin_(trxId);
+    if(!r){ showToast('Data tidak ditemukan.','error'); return; }
+
+    var initials = (r.employeeName||'?').trim().split(/\s+/).slice(0,2).map(function(w){return w.charAt(0).toUpperCase();}).join('') || '?';
+    var head =
+      '<div class="order-summary-head">' +
+        '<div class="order-summary-head-top">' +
+          '<div class="order-summary-icon">'+ICONS.cart+'</div>' +
+          '<div class="order-summary-text">' +
+            '<div class="order-summary-title">'+escapeHtml(r.trxId||'-')+'</div>' +
+            '<div class="order-summary-sub">'+escapeHtml(r.employeeName||'-')+' &middot; '+(r.createdAt ? formatDateTime_(r.createdAt) : '-')+'</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    var infoGrid =
+      '<div class="agent-detail-section-title">Informasi Transaksi</div>' +
+      '<div class="agent-detail-grid">' +
+        detailField_('Karyawan', escapeHtml(r.employeeName)) +
+        detailField_('No. ID Card', escapeHtml(r.idCardNumber)) +
+        detailField_('Perusahaan', escapeHtml(r.companyName)) +
+        detailField_('Store', escapeHtml(r.storeName)) +
+        detailField_('No. Transaksi', escapeHtml(r.trxNumber)) +
+        detailField_('Nominal', formatRupiah(r.amount)) +
+        detailField_('Tanggal', r.createdAt ? formatDateTime_(r.createdAt) : '-') +
+      '</div>' +
+      (r.note ? '<div class="agent-detail-section-title">Catatan</div>' +
+        '<div style="font-size:13px;color:var(--ag-gray-700);background:var(--ag-gray-50);padding:10px 12px;border-radius:var(--radius-sm);">'+escapeHtml(r.note)+'</div>'
+        : '');
+
+    var docsHtml = '<div class="agent-detail-section-title">Foto Struk</div>';
+    if(r.receiptUrl){
+      docsHtml += '<div class="doc-preview-grid">' +
+        docPreviewCard_({ label:'Foto Struk', url:r.receiptUrl, fileId:r.receiptFileId||'', isPdf:/\.pdf($|\?)/i.test(r.receiptUrl||'') }, null) +
+      '</div>';
+    } else {
+      docsHtml += '<div class="doc-preview-empty">Belum ada foto struk diunggah</div>';
+    }
+
+    var canDeleteThis = STATE.user.role === 'ADMIN' || STATE.user.role === 'SUPERVISOR' || STATE.user.role === 'MANAGER';
+    var footer = canDeleteThis
+      ? '<button class="btn btn-danger" style="display:inline-flex;align-items:center;gap:7px;" onclick="closeModal();deleteEbTransactionConfirm_(\''+escapeHtml(r.trxId)+'\')"><span style="width:15px;height:15px;display:inline-flex;">'+ICONS.trash+'</span>Hapus Transaksi</button>' +
+        '<button class="btn btn-secondary" onclick="closeModal()">Tutup</button>'
+      : '';
+
+    openModal(viewModalHtml_('Detail Transaksi Employee Benefit', head + infoGrid + docsHtml, '', 'modal-lg', footer), 'modal-lg');
+  }
+
+  /** Admin/Supervisor/Manager: hapus permanen 1 transaksi Employee Benefit (mis. salah input
+   *  oleh kasir Store, transaksi duplikat). Mirror pola deletePOConfirm(). */
+  function deleteEbTransactionConfirm_(trxId){
+    var r = findEbTransactionAdmin_(trxId);
+    var label = r ? (r.trxNumber || trxId) : trxId;
+    openConfirmModal({
+      title: 'Hapus Transaksi?',
+      message: 'Transaksi "'+label+'" beserta foto struknya akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.',
+      confirmLabel: 'Ya, Hapus',
+      danger: true,
+      icon: ICONS.trash,
+      onConfirm: function(){
+        setPageLoading_(true, 'Menghapus transaksi');
+        google.script.run.withSuccessHandler(function(res){
+          setPageLoading_(false);
+          if(res.success){
+            showToast(res.message || 'Transaksi dihapus.','success');
+            renderEbTransactionsAdmin();
+            invalidateDashboardCache_();
+          } else showToast(res.message || 'Gagal menghapus transaksi.','error');
+        }).withFailureHandler(function(e){ setPageLoading_(false); handleBackendError(e); }).ebDeleteTransaction(STATE.token, trxId);
+      }
+    });
   }
 
   /** Rapi ala viewAgent(): head avatar + badge, grid data diri, dokumen sebagai card
