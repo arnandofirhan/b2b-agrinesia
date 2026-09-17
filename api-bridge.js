@@ -281,12 +281,26 @@
         // fnName lainnya = nama fungsi backend yang sesungguhnya mau dipanggil.
         return function () {
           var args = Array.prototype.slice.call(arguments);
+          // BUG NYATA (dropdown "Area Pendaftaran"/"Perusahaan" lama muncul): JavaScript.html/
+          // index.html menandai panggilan background (mis. ping() warm-up saat boot) sebagai
+          // low-priority dengan menyalakan window.__BG_LOW_PRIORITY__ tepat sebelum memanggil
+          // google.script.run lalu mematikannya lagi sesudahnya (lihat _agBootInit_) — TAPI
+          // `lowPriority` di sini cuma nilai closure dari makeRunner_(..., false) yang dipatok
+          // false SEKALI di awal dan tidak pernah dibaca ulang dari window.__BG_LOW_PRIORITY__.
+          // Akibatnya ping() SELALU dianggap high-priority, ikut masuk hiQueue dan malah
+          // digabung dalam SATU batch/exec call bersama prefetch dropdown area & perusahaan
+          // yang sungguhan ditunggu user (lihat runBatch_: satu batch dieksekusi berurutan di
+          // SATU slot kuota GAS) — jadi kalau ping() kena cold-start lambat, dropdown ikut
+          // ketahan menunggu di belakangnya. FIX: baca window.__BG_LOW_PRIORITY__ di sini,
+          // persis saat job ini dibuat (sinkron dengan pemanggilnya menyalakan flag itu),
+          // supaya ping() betul-betul lewat loQueue terpisah dan tidak lagi menghalangi
+          // request yang sungguhan ditunggu di layar.
           enqueue_({
             fnName: String(fnName),
             args: args,
             onSuccess: onSuccess,
             onFailure: onFailure,
-            lowPriority: !!lowPriority
+            lowPriority: !!lowPriority || !!window.__BG_LOW_PRIORITY__
           });
         };
       }
