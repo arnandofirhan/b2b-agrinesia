@@ -4677,7 +4677,7 @@
     { key: 'audit-log',   icon: ICONS.audit,     label: 'Audit Log',        roles: ['ADMIN','MANAGER'] },
     { key: 'eb-qr',           icon: ICONS.reports,     label: 'QR Code',            roles: ['EMPLOYEE'] },
     { key: 'eb-transactions', icon: ICONS.transactions,label: 'Riwayat Transaksi',  roles: ['EMPLOYEE'] },
-    { key: 'eb-profile',      icon: ICONS.users,       label: 'Profile',            roles: ['EMPLOYEE'] },
+    { key: 'eb-profile',      icon: ICONS.users,       label: 'Profile',            roles: ['EMPLOYEE','STORE'] },
     { key: 'eb-scan',         icon: ICONS.cart,        label: 'Scan Barcode',       roles: ['STORE'] },
     { key: 'eb-store-transactions', icon: ICONS.transactions, label: 'Riwayat Transaksi', roles: ['STORE'] },
     { key: 'eb-companies',    icon: ICONS.stores,      label: 'Master Company',     roles: ['ADMIN','SUPERVISOR','MANAGER'] },
@@ -4953,7 +4953,7 @@
   // role. Dulu ini HANYA berlaku utk role AGENT (hardcoded); role EMPLOYEE disamakan ke
   // gaya ini juga atas permintaan (lihat renderStoreScan/eb-profile) — cukup tambah
   // barisnya di sini kalau nanti ada role lain yang mau disamakan juga.
-  var TOPBAR_COMPACT_PROFILE_PAGE_ = { AGENT: 'agents', EMPLOYEE: 'eb-profile' };
+  var TOPBAR_COMPACT_PROFILE_PAGE_ = { AGENT: 'agents', EMPLOYEE: 'eb-profile', STORE: 'eb-profile' };
 
   function handleUserTriggerClick_(e){
     var isMobileViewport = window.matchMedia('(max-width:860px)').matches;
@@ -5376,7 +5376,7 @@
     // Role AGENT punya agentId, role EMPLOYEE punya employeeId — pakai yang tersedia.
     var agentIdLabelEl = document.getElementById('userAgentIdLabel');
     if(agentIdLabelEl){
-      var idValue = STATE.user.agentId || STATE.user.employeeId;
+      var idValue = STATE.user.agentId || STATE.user.employeeId || (STATE.user.role === 'STORE' ? 'Store' : '');
       agentIdLabelEl.textContent = idValue ? ('ID: ' + idValue) : '';
     }
     applyAgentTopbarLayout_();
@@ -16228,27 +16228,65 @@
   // =============================================================================
   // ROLE EMPLOYEE — PROFILE
   // =============================================================================
+  // TAMBAHAN: menu 'eb-profile' sekarang juga dibuka untuk role STORE (kasir), bukan cuma
+  // EMPLOYEE — tapi datanya beda total (STORE tidak punya data karyawan/KTP/ID Card, cuma
+  // identitas akun store dari baris USERS), jadi di sini cukup bercabang pilih backend fn
+  // & template HTML mana yang dipakai sesuai role, isi cache & guard STATE.currentPage-nya
+  // tetap sama persis seperti punya EMPLOYEE.
   var EB_PROFILE_CACHE_ = null;
   function renderEmployeeProfile(){
     var content = document.getElementById('content');
+    var isStoreRole = STATE.user && STATE.user.role === 'STORE';
     if(EB_PROFILE_CACHE_){
-      content.innerHTML = ebProfileHtml_(EB_PROFILE_CACHE_);
+      content.innerHTML = isStoreRole ? ebStoreProfileHtml_(EB_PROFILE_CACHE_) : ebProfileHtml_(EB_PROFILE_CACHE_);
     } else {
       content.innerHTML = '<div class="spinner"></div>';
     }
-    google.script.run
+    var runner = google.script.run
       .withSuccessHandler(function(p){
         if(STATE.currentPage !== 'eb-profile') return;
         EB_PROFILE_CACHE_ = p;
-        content.innerHTML = ebProfileHtml_(p);
+        content.innerHTML = isStoreRole ? ebStoreProfileHtml_(p) : ebProfileHtml_(p);
       })
       .withFailureHandler(function(err){
         // Kalau sudah ada cache yang tampil, jangan timpa layar dengan pesan error hanya
         // karena refresh di background gagal (mis. koneksi sempat putus) — biarkan data lama
         // tetap terlihat, sama seperti pola renderStoreDashboard.
         if(!EB_PROFILE_CACHE_) handleBackendError(err, document.getElementById('content'));
-      })
-      .ebGetMyProfile(STATE.token);
+      });
+    if(isStoreRole) runner.ebGetMyStoreProfile(STATE.token);
+    else runner.ebGetMyProfile(STATE.token);
+  }
+
+  /** Halaman Profile milik role STORE (kasir) — sengaja jauh lebih ringkas dibanding
+   *  ebProfileHtml_ milik EMPLOYEE: STORE cuma akun kasir polos (nama store + email +
+   *  status aktif/nonaktif dari baris USERS), tidak ada data karyawan/dokumen KTP/ID Card
+   *  sama sekali. Struktur class (profile-hero, card, agent-detail-grid, detailField_)
+   *  sengaja tetap dipakai ulang biar gaya visualnya konsisten dengan Profil Agent/Employee. */
+  function ebStoreProfileHtml_(p){
+    var initials = (p.storeName||'?').trim().split(/\s+/).slice(0,2).map(function(w){return w.charAt(0).toUpperCase();}).join('') || '?';
+    var html = '<div class="profile-hero">' +
+      '<div class="profile-hero-avatar">'+escapeHtml(initials)+'</div>' +
+      '<div class="profile-hero-info">' +
+        '<div class="profile-hero-name">'+escapeHtml(p.storeName||'-')+'</div>' +
+        '<div class="profile-hero-id">'+escapeHtml(p.email||'-')+'</div>' +
+        '<div class="profile-hero-badges">' + statusBadge(p.status) + '</div>' +
+      '</div>' +
+      '<button type="button" class="profile-hero-pw-btn" onclick="openChangePasswordModal()">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>' +
+        '<span>Ganti Password</span>' +
+      '</button>' +
+    '</div>';
+
+    html += '<div class="card">' +
+      '<div class="card-header"><span class="card-title">Data Store</span></div>' +
+      '<div class="agent-detail-grid">' +
+        detailField_('Nama Store', escapeHtml(p.storeName)) +
+        detailField_('Email', escapeHtml(p.email), true) +
+      '</div>' +
+    '</div>';
+
+    return html;
   }
 
   function ebProfileHtml_(p){
