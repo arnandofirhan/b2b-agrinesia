@@ -7471,22 +7471,59 @@
     });
   }
 
-  /** Populate dropdown Perusahaan dari daftar company aktif (ebListCompaniesPublic). */
-  function loadEbRegCompanies_(){
+  // BUG NYATA ("Perusahaan" lama banget muat pas modal Registrasi Employee Benefit dibuka):
+  // _agBootInit_ di file ini memanggil ebLoadCompanyOptions_() untuk prefetch diam-diam saat
+  // boot -- TAPI fungsi bernama itu TIDAK PERNAH ADA di index.html ini (cuma ada di
+  // JavaScript.html, salinan GAS yang sudah tidak sinkron dengan index.html GitHub Pages ini).
+  // Panggilan itu langsung ReferenceError setiap boot, dan karena dibungkus try{}catch(e){}
+  // errornya senyap total -- prefetch itu TIDAK PERNAH benar-benar jalan. Fungsi yang
+  // sungguhan dipakai di sini, loadEbRegCompanies_(), juga tidak punya cache sama sekali,
+  // jadi tiap kali modal dibuka dia menembak ebListCompaniesPublic() dari nol -- user harus
+  // menunggu full round-trip ke GAS PERSIS di momen klik "Daftar", sama seperti bug
+  // "Area Pendaftaran" yang sudah diperbaiki di form Registrasi Agent (loadRegAreaOptions_/
+  // REG_AREAS_CACHE_ di atas). FIX: disamakan namanya jadi ebLoadCompanyOptions_ (match dgn
+  // JavaScript.html supaya kedua salinan tidak diverge lagi) + ditambah cache
+  // EB_REG_COMPANIES_CACHE_ per-tab persis pola REG_AREAS_CACHE_, supaya begitu prefetch
+  // boot benar-benar jalan, buka modal langsung cache-hit & render instan.
+  // Nama var cache SENGAJA EB_REG_COMPANIES_CACHE_ (bukan EB_COMPANIES_CACHE_) supaya tidak
+  // bentrok dengan cache modul Admin "Master Company" di bawah (var EB_COMPANIES_CACHE_),
+  // yang bentuk datanya beda (CompanyID/CompanyName huruf besar dari ebListCompanies(token)
+  // vs companyId/companyName huruf kecil dari ebListCompaniesPublic() di sini) -- kalau dua
+  // modul itu berbagi satu variabel yang sama, salah satu dropdown bisa merender field yang
+  // salah/kosong tanpa error apa pun.
+  var EB_REG_COMPANIES_CACHE_ = null;
+
+  /** Populate dropdown Perusahaan dari daftar company aktif (ebListCompaniesPublic).
+   *  Dipanggil setiap modal dibuka; hasil di-cache di tab ini (EB_REG_COMPANIES_CACHE_)
+   *  supaya buka-tutup modal berkali-kali tidak menembak backend berulang -- persis pola
+   *  loadRegAreaOptions_/REG_AREAS_CACHE_ di form Registrasi Agent di atas. */
+  function ebLoadCompanyOptions_(){
     var select = document.getElementById('ebRegCompanyId');
     if(!select) return;
+    if(EB_REG_COMPANIES_CACHE_){
+      renderEbRegCompanyOptions_(EB_REG_COMPANIES_CACHE_);
+      return;
+    }
     select.innerHTML = '<option value="">Memuat daftar perusahaan...</option>';
     google.script.run.withSuccessHandler(function(list){
-      if(!select) return;
-      if(!list || !list.length){
-        select.innerHTML = '<option value="">Belum ada perusahaan terdaftar</option>';
-        return;
-      }
-      select.innerHTML = '<option value="">Pilih perusahaan...</option>' +
-        list.map(function(c){ return '<option value="'+escapeHtml(c.companyId)+'">'+escapeHtml(c.companyName)+'</option>'; }).join('');
+      EB_REG_COMPANIES_CACHE_ = list || [];
+      renderEbRegCompanyOptions_(EB_REG_COMPANIES_CACHE_);
     }).withFailureHandler(function(){
-      if(select) select.innerHTML = '<option value="">Gagal memuat perusahaan</option>';
+      var el = document.getElementById('ebRegCompanyId');
+      if(el) el.innerHTML = '<option value="">Gagal memuat perusahaan -- coba tutup & buka lagi</option>';
     }).ebListCompaniesPublic();
+  }
+
+  function renderEbRegCompanyOptions_(list){
+    var select = document.getElementById('ebRegCompanyId');
+    if(!select) return;
+    if(!list || !list.length){
+      select.innerHTML = '<option value="">Belum ada perusahaan terdaftar -- hubungi Admin</option>';
+      return;
+    }
+    select.innerHTML = '<option value="">Pilih perusahaan...</option>' +
+      list.map(function(c){ return '<option value="'+escapeHtml(c.companyId)+'">'+escapeHtml(c.companyName)+'</option>'; }).join('');
+    updateEbRegFormState_();
   }
 
   function openEbRegisterModal(){
@@ -7496,7 +7533,7 @@
     document.getElementById('ebRegPhone').value = '';
     document.getElementById('ebRegIDCardNumber').value = '';
     document.getElementById('ebRegError').style.display = 'none';
-    loadEbRegCompanies_();
+    ebLoadCompanyOptions_();
     updateEbRegFormState_();
     document.getElementById('ebRegisterModal').classList.add('show');
   }
