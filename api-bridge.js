@@ -52,10 +52,25 @@
   var MAX_CONCURRENT_HI = 3;
   var MAX_CONCURRENT_LO = 2;
 
+  // FIX PERFORMA ("lemot pas beberapa device buka/login bareng"): SEBELUMNYA tiap
+  // google.script.run.fn() = 1 fetch /exec sendiri-sendiri, jadi begitu satu render()
+  // butuh 1-3 call (atau beberapa device login bersamaan), jumlah request /exec PARALEL
+  // ke GAS meledak — padahal kuota eksekusi paralel GAS dibagi ke SEMUA pemanggil dari
+  // device manapun (lihat handleRpc_ di Code.gs). FIX: job-job yang nembak nyaris
+  // bersamaan digabung jadi SATU fetch berisi { batch: [{fn,args}, ...] } — GAS
+  // mengeksekusi semuanya berurutan dalam SATU slot kuota, bukan N slot terpisah. Jendela
+  // BATCH_WINDOW_MS kecil ini yang nunggu job lain "nyusul" sebelum benar-benar dikirim;
+  // begitu ada MAX_BATCH_SIZE job menumpuk, batch langsung ditembak duluan (tidak nunggu
+  // timer) supaya antrian panjang tidak malah nambah delay.
+  var BATCH_WINDOW_MS = 15;
+  var MAX_BATCH_SIZE = 8;
+
   var hiQueue = [];
   var loQueue = [];
   var hiActive = 0;
   var loActive = 0;
+  var hiTimer = null;
+  var loTimer = null;
 
   // FIX BUG NYATA ("Unexpected token '<', <!DOCTYPE ... is not valid JSON" muncul tepat
   // setelah logout lalu login lagi): JavaScript.html SUDAH mengasumsikan bridge ini punya
@@ -85,6 +100,8 @@
     bridgeGen_++;
     hiQueue.length = 0;
     loQueue.length = 0;
+    if (hiTimer) { clearTimeout(hiTimer); hiTimer = null; }
+    if (loTimer) { clearTimeout(loTimer); loTimer = null; }
     // hiActive/loActive SENGAJA tidak direset ke 0 di sini — itu menghitung request yang
     // SEDANG di-fetch (sudah terkirim ke server), bukan yang masih di antrian. Membiarkan
     // pump_() jalan otomatis begitu masing-masing selesai (lewat callback done() di
@@ -92,27 +109,42 @@
     // otomatis diabaikan lewat pengecekan job.gen !== bridgeGen_ di bawah.
   };
 
-  function pump_() {
-    while (hiActive < MAX_CONCURRENT_HI && hiQueue.length) {
-      hiActive++;
-      var job = hiQueue.shift();
-      runJob_(job, function () { hiActive--; pump_(); });
-    }
-    while (loActive < MAX_CONCURRENT_LO && loQueue.length) {
-      loActive++;
-      var job2 = loQueue.shift();
-      runJob_(job2, function () { loActive--; pump_(); });
+  function scheduleFlush_(isLow) {
+    if (isLow) {
+      if (loTimer) return; // sudah ada flush terjadwal, job ini otomatis ikut kebawa
+      loTimer = setTimeout(function () { loTimer = null; pump_(); }, BATCH_WINDOW_MS);
+    } else {
+      if (hiTimer) return;
+      hiTimer = setTimeout(function () { hiTimer = null; pump_(); }, BATCH_WINDOW_MS);
     }
   }
 
-  function runJob_(job, done, isRetry) {
+  function pump_() {
+    while (hiActive < MAX_CONCURRENT_HI && hiQueue.length) {
+      hiActive++;
+      var batch = hiQueue.splice(0, MAX_BATCH_SIZE);
+      runBatch_(batch, function () { hiActive--; pump_(); });
+    }
+    while (loActive < MAX_CONCURRENT_LO && loQueue.length) {
+      loActive++;
+      var batch2 = loQueue.splice(0, MAX_BATCH_SIZE);
+      runBatch_(batch2, function () { loActive--; pump_(); });
+    }
+  }
+
+  // jobs = array job (hasil gabungan beberapa google.script.run.fn() yang nembak
+  // berdekatan) — dikirim sebagai SATU request { batch: [...] }, dieksekusi berurutan
+  // di server dalam SATU slot kuota GAS, lalu hasilnya di-map balik ke job masing-masing
+  // lewat index array (urutan batch di request == urutan result di response, karena
+  // runSingleRpc_ di Code.gs dipanggil sinkron berurutan via Array.map).
+  function runBatch_(jobs, done, isRetry) {
     fetch(GAS_EXEC_URL, {
       method: 'POST',
       // text/plain menghindari CORS preflight OPTIONS (GAS /exec tidak
 
       // melayani preflight dengan baik) — Code.gs tetap JSON.parse() body-nya.
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ fn: job.fnName, args: job.args })
+      body: JSON.stringify({ batch: jobs.map(function (j) { return { fn: j.fnName, args: j.args }; }) })
     })
       .then(function (res) {
         // FIX BUG NYATA ("login 2-3 akun/device berdekatan, yang belakangan selalu kena
@@ -145,19 +177,34 @@
       })
       .then(function (payload) {
         done();
-        // Job ini mulai dieksekusi SEBELUM __apiBridgeResetQueue__() dipanggil (kalau
-        // sesudahnya, job ini malah tidak akan pernah ada di sini — sudah dibuang total
-        // dari antrian, lihat catatan di reset). Kalau generasinya sudah usang, response
-        // yang baru pulang ini kemungkinan besar dari SESI LAMA (sebelum logout) — jangan
-        // sentuh callback onSuccess/onFailure APAPUN, supaya tidak menyentuh STATE.user dkk
-        // yang sudah berubah sejak job ini dijadwalkan (prinsip sama dengan SESSION_GEN_ di
-        // JavaScript.html).
-        if (job.gen !== bridgeGen_) return;
-        if (payload && payload.ok) {
-          job.onSuccess(payload.result);
-        } else {
-          job.onFailure(new Error((payload && payload.error) || 'Unknown error dari server.'));
+        if (!payload || payload.ok !== true || !Array.isArray(payload.batch)) {
+          // Balasan sukses tapi bentuknya bukan kontrak batch yang diharapkan — perlakukan
+          // semua job di batch ini sebagai gagal daripada crash di .forEach bawah.
+          var genericErr = new Error((payload && payload.error) || 'Balasan server tidak valid.');
+          jobs.forEach(function (j) {
+            if (j.gen !== bridgeGen_) return;
+            j.onFailure(genericErr);
+          });
+          return;
         }
+        // Tiap job dalam batch ini mulai dieksekusi SEBELUM __apiBridgeResetQueue__()
+        // dipanggil (kalau sesudahnya, job itu malah tidak akan pernah sampai sini — sudah
+        // dibuang total dari antrian, lihat catatan di reset). Kalau generasinya sudah usang,
+        // response yang baru pulang ini kemungkinan besar dari SESI LAMA (sebelum logout) —
+        // jangan sentuh callback onSuccess/onFailure job itu, supaya tidak menyentuh
+        // STATE.user dkk yang sudah berubah sejak job dijadwalkan (prinsip sama dengan
+        // SESSION_GEN_ di JavaScript.html). Job lain dalam batch yang SAMA bisa saja generasinya
+        // masih valid (mis. batch dikirim tepat saat logout terjadi di tengah-tengah) — makanya
+        // dicek per-job, bukan per-batch.
+        jobs.forEach(function (j, i) {
+          if (j.gen !== bridgeGen_) return;
+          var r = payload.batch[i];
+          if (r && r.ok) {
+            j.onSuccess(r.result);
+          } else {
+            j.onFailure(new Error((r && r.error) || 'Unknown error dari server.'));
+          }
+        });
       })
       .catch(function (err) {
         // Retry utk respons non-JSON/non-OK dari GAS (kuota paralel penuh sesaat) — lihat
@@ -166,7 +213,7 @@
         // persis sama (yang justru bisa memperpanjang kepenuhan kuota, bukan meredakannya).
         if (!isRetry && err && err.__badResponse) {
           var backoff = 900 + Math.floor(Math.random() * 700); // ~0.9–1.6 detik
-          setTimeout(function () { runJob_(job, done, true); }, backoff);
+          setTimeout(function () { runBatch_(jobs, done, true); }, backoff);
           return;
         }
         // FIX BUG NYATA ("Failed to fetch" sesaat di HP, terutama tepat setelah PWA baru
@@ -182,19 +229,38 @@
         // kegagalan asli), hanya untuk TypeError murni ini (err.message mengandung "fetch"),
         // dengan delay singkat, sebelum benar-benar melaporkan gagal ke user.
         if (!isRetry && err instanceof TypeError) {
-          setTimeout(function () { runJob_(job, done, true); }, 800);
+          setTimeout(function () { runBatch_(jobs, done, true); }, 800);
           return;
         }
         done();
-        if (job.gen !== bridgeGen_) return;
-        job.onFailure(err);
+        jobs.forEach(function (j) {
+          if (j.gen !== bridgeGen_) return;
+          j.onFailure(err);
+        });
       });
   }
 
   function enqueue_(job) {
     job.gen = bridgeGen_; // rekam generasi SAAT job dibuat — lihat catatan lengkap di atas
-    if (job.lowPriority) loQueue.push(job); else hiQueue.push(job);
-    pump_();
+    if (job.lowPriority) {
+      loQueue.push(job);
+      // Kalau antrian sudah cukup penuh, langsung flush (batal timer) — jangan nambah
+      // delay lagi buat job yang sudah menumpuk menunggu.
+      if (loQueue.length >= MAX_BATCH_SIZE) {
+        if (loTimer) { clearTimeout(loTimer); loTimer = null; }
+        pump_();
+      } else {
+        scheduleFlush_(true);
+      }
+    } else {
+      hiQueue.push(job);
+      if (hiQueue.length >= MAX_BATCH_SIZE) {
+        if (hiTimer) { clearTimeout(hiTimer); hiTimer = null; }
+        pump_();
+      } else {
+        scheduleFlush_(false);
+      }
+    }
   }
 
   // ---- Proxy builder: tiap .fnName(...) di rantai ini didaftarkan lewat Proxy,
