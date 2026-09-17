@@ -1338,6 +1338,22 @@
   .kpi-card.kpi-teal{background:linear-gradient(135deg,#14B8A6 0%,#0D7A6E 100%);}
   .kpi-card.kpi-pink{background:linear-gradient(135deg,#F472B6 0%,#C0266B 100%);}
 
+  /* ---------- KPI grid versi kecil (mis. panel "Ringkasan Bulan Ini" di Dashboard Employee
+     Benefit) — sama gayanya dengan .kpi-grid, cuma card lebih ringkas & tidak makan tempat
+     sebanyak KPI utama di atasnya. ---------- */
+  .kpi-grid-sm{display:grid;grid-template-columns:repeat(auto-fit, minmax(140px,1fr));gap:10px;margin-bottom:14px;}
+  .kpi-grid-sm .kpi-card{padding:11px 13px;}
+  .kpi-grid-sm .kpi-value{font-size:17px;}
+  .kpi-grid-sm .kpi-icon{width:24px;height:24px;margin-bottom:7px;}
+  .kpi-grid-sm .kpi-icon svg{width:13px;height:13px;}
+  .kpi-card.kpi-skeleton{background:var(--ag-gray-100);box-shadow:none;}
+  .kpi-card.kpi-skeleton .skeleton-line{background:linear-gradient(90deg, var(--ag-gray-200) 25%, var(--ag-gray-300) 37%, var(--ag-gray-200) 63%);background-size:400% 100%;animation:skeleton-shimmer 1.4s ease infinite;display:block;}
+  [data-theme="dark"] .kpi-card.kpi-skeleton{background:var(--ag-gray-200);}
+
+  /* ---------- Daftar mini "per perusahaan" di panel Ringkasan Bulan Ini — reuse baris
+     .eb-recent-row yang sudah ada (Dashboard Karyawan) supaya konsisten tampilannya. ---------- */
+  .eb-month-company-list{display:flex;flex-direction:column;gap:2px;}
+
   /* ---------- Welcome banner (compact & elegant) ---------- */
   .welcome-banner{
     background:linear-gradient(120deg,#0B3D2E 0%,#1E7A4C 100%);
