@@ -7171,6 +7171,12 @@
         // pernah dirender di renderAgentSelfCard (Profil Saya milik Agent sendiri), dan
         // backend getAgentDetail() juga sudah menyaring field ini keluar untuk sesi AGENT.
         detailField_('Area Pendaftaran', a.RegistrationArea ? escapeHtml(a.RegistrationArea) : '<span style="color:var(--ag-gray-400);">Belum diketahui</span>') +
+        // Approval By: nama + waktu approval, sama seperti kolom "Approval By" di tabel
+        // Daftar Agent (lihat approvalByCell_). Kosong ("Belum di-approve") kalau agent
+        // ini belum pernah di-approve (mis. masih SUBMITTED/REJECTED).
+        detailField_('Approval By', a.ApprovedByName ?
+          escapeHtml(a.ApprovedByName) + formatApprovalDateSuffix_(a.ApprovedAt) :
+          '<span style="color:var(--ag-gray-400);">Belum di-approve</span>') +
       '</div>' +
       (a.RejectionNote ?
         '<div class="agent-detail-section-title">Catatan Penolakan</div>' +
@@ -11882,6 +11888,17 @@
       AUDIT_LOG_STATE.page = 1;
       paintPage_('audit-log', auditLogPageHtml_());
     }).withFailureHandler(function(e){ handleBackendError(e, pageErrorEl_('audit-log')); }).listAuditLog(STATE.token, 1000);
+  }
+
+  /** " · dd/mm/yyyy, hh:mm" suffix dipakai di modal Detail Agent/Detail Karyawan setelah
+   *  nama approver (mis. "Administrator · 17/09/2026, 14:05") — tanggalnya sama persis
+   *  dengan yang dipakai approvalByCell_ di tabel, biar konsisten di seluruh halaman. */
+  function formatApprovalDateSuffix_(approvedAt){
+    if(!approvedAt) return '';
+    var d = new Date(approvedAt);
+    if(isNaN(d.getTime())) return '';
+    function pad2(n){ return (n<10?'0':'') + n; }
+    return ' &middot; ' + pad2(d.getDate())+'/'+pad2(d.getMonth()+1)+'/'+d.getFullYear()+', '+pad2(d.getHours())+':'+pad2(d.getMinutes());
   }
 
   /** Sel dua-baris "Approval By": nama approver di baris atas, tanggal+jam approval
@@ -18010,6 +18027,11 @@
         detailField_('No. Telepon', escapeHtml(e.Phone)) +
         detailField_('No. ID Card', escapeHtml(e.IDCardNumber)) +
         detailField_('Perusahaan', escapeHtml(e.CompanyName)) +
+        // Approval By: sama pola dengan Detail Agent — nama + waktu approval, "Belum
+        // di-approve" kalau masih SUBMITTED/REJECTED.
+        detailField_('Approval By', e.ApprovedByName ?
+          escapeHtml(e.ApprovedByName) + formatApprovalDateSuffix_(e.ApprovedAt) :
+          '<span style="color:var(--ag-gray-400);">Belum di-approve</span>') +
       '</div>' +
       (e.RejectionNote ?
         '<div class="agent-detail-section-title">Catatan Penolakan</div>' +
