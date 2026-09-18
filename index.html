@@ -14313,6 +14313,20 @@
     ebLoadDashMonthOverview_(EB_DASH_ADMIN_YM_);
   }
 
+  /** Diklik dari card KPI "Transaksi Bulan Ini" / "Nilai Transaksi Bulan Ini" di panel
+   *  Ringkasan Bulan Ini — loncat ke halaman Transaksi Employee Benefit dengan filter Bulan
+   *  OTOMATIS ke-set ke bulan yang sama (bukan sekadar pindah halaman kosong). Filter lain
+   *  (Perusahaan, Tanggal, pencarian teks) sengaja direset supaya hasilnya benar-benar
+   *  mencerminkan "semua transaksi bulan ini", bukan tercampur sisa filter kunjungan
+   *  sebelumnya. Reuse cache PAGE_HTML_CACHE dihapus dulu (delete) supaya halaman tujuan
+   *  pasti dirender ulang dengan filter baru, bukan menampilkan versi cache lama yang belum
+   *  ter-filter. */
+  function goToEbTransactionsFilteredByMonth_(ym){
+    FILTER_STATE_EB_TRANSACTIONS_ADMIN_ = { q:'', companyName:'__ALL__', bulan:ym, tanggalFrom:'', tanggalTo:'' };
+    delete PAGE_HTML_CACHE['eb-transactions-admin'];
+    showPage('eb-transactions-admin');
+  }
+
   /** Dipanggil saat dropdown bulan di panel "Ringkasan Bulan Ini" diganti — hanya me-refresh
    *  panel itu sendiri (ebDashMonthBox), TIDAK me-render ulang seluruh dashboard, supaya tren
    *  7 hari/leaderboard/dll di atasnya tidak ikut "berkedip". */
@@ -14353,14 +14367,19 @@
       return;
     }
     var avgPerTrx = data.monthTrxCount ? Math.round(data.monthTotalAmount / data.monthTrxCount) : 0;
+    // Trx Bulan Ini & Nilai Bulan Ini bisa diklik -> loncat ke Transaksi Employee Benefit
+    // dengan filter Bulan otomatis ke-set ke bulan yang lagi dipilih di panel ini (data.yearMonth
+    // dari ebGetAdminOverview). Rata-rata/Transaksi TIDAK diklikkan karena bukan angka yang
+    // punya filter 1:1 di tabel (cuma hasil bagi, bukan atribut baris).
+    var goToTrx = 'goToEbTransactionsFilteredByMonth_(\''+data.yearMonth+'\')';
     box.innerHTML =
       '<div class="kpi-grid-sm">' +
-        '<div class="kpi-card kpi-blue">' +
+        '<div class="kpi-card kpi-blue kpi-card-clickable" onclick="'+goToTrx+'">' +
           '<div class="kpi-icon">'+ICONS.cart+'</div>' +
           '<div class="kpi-value">'+data.monthTrxCount+'</div>' +
           '<div class="kpi-label">Transaksi Bulan Ini</div>' +
         '</div>' +
-        '<div class="kpi-card kpi-orange">' +
+        '<div class="kpi-card kpi-orange kpi-card-clickable" onclick="'+goToTrx+'">' +
           '<div class="kpi-icon">'+ICONS.commission+'</div>' +
           '<div class="kpi-value">'+formatRupiah(data.monthTotalAmount)+'</div>' +
           '<div class="kpi-label">Nilai Transaksi Bulan Ini</div>' +
