@@ -6868,7 +6868,8 @@
         }
         return b;
       }},
-      {label:'Status Agent', render:function(r){return statusBadge(r.AgentStatus);}}
+      {label:'Status Agent', render:function(r){return statusBadge(r.AgentStatus);}},
+      {label:'Approval By', render:function(r){ return approvalByCell_(r.ApprovedByName, r.ApprovedAt); }}
     ];
     var actions = function(r){
       var html = '<div class="row-actions" style="flex-wrap:wrap;">';
@@ -11881,6 +11882,26 @@
       AUDIT_LOG_STATE.page = 1;
       paintPage_('audit-log', auditLogPageHtml_());
     }).withFailureHandler(function(e){ handleBackendError(e, pageErrorEl_('audit-log')); }).listAuditLog(STATE.token, 1000);
+  }
+
+  /** Sel dua-baris "Approval By": nama approver di baris atas, tanggal+jam approval
+   *  di bawahnya (kelas cell-agent-name/cell-agent-sub sudah dipakai di kolom User
+   *  Audit Log — dipakai ulang di sini biar konsisten). Kosong kalau belum di-approve
+   *  (mis. masih SUBMITTED/REJECTED). */
+  function approvalByCell_(name, approvedAt){
+    if(!name) return '<span class="cell-agent-sub">-</span>';
+    var sub = '-';
+    if(approvedAt){
+      var d = new Date(approvedAt);
+      if(!isNaN(d.getTime())){
+        function pad2(n){ return (n<10?'0':'') + n; }
+        sub = pad2(d.getDate())+'/'+pad2(d.getMonth()+1)+'/'+d.getFullYear()+', '+pad2(d.getHours())+':'+pad2(d.getMinutes());
+      }
+    }
+    return '<div class="cell-agent">' +
+      '<div class="cell-agent-name">'+escapeHtml(name)+'</div>' +
+      '<div class="cell-agent-sub">'+sub+'</div>' +
+    '</div>';
   }
 
   function auditLogActionBadge_(action){
@@ -17775,7 +17796,8 @@
       {label:'No. ID Card', field:'IDCardNumber'},
       {label:'Perusahaan', field:'CompanyName'},
       {label:'Registrasi', render:function(r){return ebStatusBadge_(r.RegistrationStatus);}},
-      {label:'Status Karyawan', render:function(r){return ebStatusBadge_(r.EmployeeStatus);}}
+      {label:'Status Karyawan', render:function(r){return ebStatusBadge_(r.EmployeeStatus);}},
+      {label:'Approval By', render:function(r){ return approvalByCell_(r.ApprovedByName, r.ApprovedAt); }}
     ];
     var actions = function(r){
       var html = '<div class="row-actions" style="flex-wrap:wrap;">';
